@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Maprix Operador</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/operador.css') }}">
+</head>
+<body>
+
+    <div id="tela-login" class="login-container">
+        <div class="brand-area">
+            <i class="fa-solid fa-earth-americas logo-icon"></i>
+            <h1>MAPRIX</h1>
+            <p>Acesso Operacional</p>
+        </div>
+        
+        <div class="login-card">
+            <div class="input-group">
+                <i class="fa-solid fa-caravan input-icon"></i>
+                <input type="text" id="inputEquipamento" placeholder="ID do Equipamento">
+            </div>
+            
+            <div class="input-group">
+                <i class="fa-solid fa-user input-icon"></i>
+                <input type="text" id="inputOperador" placeholder="Matrícula/Nome">
+            </div>
+            
+            <button class="btn-login" onclick="iniciarTurno()">
+                INICIAR TURNO <i class="fas fa-arrow-right"></i>
+            </button>
+        </div>
+    </div>
+
+    <div id="tela-operacao" class="app-container" style="display: none;">
+        
+        <div class="top-section">
+            <header class="app-header">
+                <div class="equip-info">
+                    <small>Equipamento Ativo:</small>
+                    <strong id="displayEquipamento">--</strong>
+                </div>
+                <button class="btn-sair" onclick="encerrarTurno()"><i class="fas fa-power-off"></i></button>
+            </header>
+
+            <div id="statusIndicator" class="status-bar online">
+                <i class="fas fa-wifi"></i> <span>Conectado</span>
+            </div>
+        </div>
+
+        <main class="main-action-section">
+            <div class="feedback-area">
+                <div id="msgFeedback" class="feedback-msg">Pronto para operar</div>
+            </div>
+
+            <button class="btn-big-trigger" onclick="capturarLocalizacao()" id="mainBtn">
+                <div class="ring-effect"></div>
+                <i class="fas fa-map-marker-alt icon-main"></i>
+                <span class="label-main">REGISTRAR<br>POSIÇÃO</span>
+            </button>
+        </main>
+
+        <footer class="bottom-section">
+            <div class="obs-drawer">
+                <label for="inputObs"><i class="fas fa-comment-alt"></i> Observação Rápida:</label>
+                <textarea id="inputObs" placeholder="Toque para adicionar nota..."></textarea>
+            </div>
+
+            <div class="sync-bar">
+                <div class="sync-status">
+                    <i class="fas fa-database"></i> Pendentes: <strong id="countPendentes">0</strong>
+                </div>
+                <button id="btnSync" class="btn-sync" onclick="sincronizarPendentes()" disabled>
+                    <i class="fas fa-sync"></i> SINCRONIZAR
+                </button>
+            </div>
+        </footer>
+    </div>
+
+    <div id="modalLogout" class="modal-overlay" style="display: none;">
+        <div class="modal-box">
+            <div class="modal-icon">
+                <i class="fas fa-power-off"></i>
+            </div>
+            <h3>Encerrar Turno?</h3>
+            <p>Você será desconectado e voltará para a tela de login.</p>
+            
+            <div class="modal-actions">
+                <button class="btn-modal-cancel" onclick="fecharModalLogout()">VOLTAR</button>
+                <button class="btn-modal-confirm" onclick="confirmarLogout()">ENCERRAR</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/operador.js') }}"></script>
+</body>
+</html>
