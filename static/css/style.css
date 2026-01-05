@@ -1,118 +1,579 @@
-/* RESETS */
-body, html { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; overflow: hidden; }
+/* =========================================
+   1. CONFIGURAÇÕES GLOBAIS E VARIÁVEIS
+   ========================================= */
 
-/* --- PALETA KINROSS --- */
 :root {
-    --kinross-gold: #FFC107;
-    --kinross-dark: #222222;
-    --kinross-gray: #444444;
-    --text-white: #ffffff;
-    --bg-panel: #f4f4f4;
+    /* Paleta Kinross Enterprise */
+    --gold: #FFC107;
+    --gold-dim: #cca000;
+    --dark-bg: #1a1a1a;
+    --dark-panel: #222222;
+    --dark-lighter: #2d2d2d;
+    --text-white: #f5f5f5;
+    --text-gray: #b0b0b0;
+    
+    /* UI Functional */
+    --bg-light: #f4f6f8;
+    --border: #e0e0e0;
+    --danger: #dc3545;
+    --success: #28a745;
+    --shadow: 0 4px 15px rgba(0,0,0,0.15);
 }
 
-/* 1. CABEÇALHO (Corrigido) */
+body, html {
+    margin: 0; padding: 0; height: 100%;
+    font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+    background-color: var(--bg-light);
+    overflow: hidden;
+}
+
+/* Scrollbar Personalizada (Fina e Escura) */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f1f1f1; }
+::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #999; }
+
+/* =========================================
+   2. HEADER
+   ========================================= */
+
 .main-header {
     height: 60px;
-    background-color: var(--kinross-dark); /* Fundo Escuro */
-    color: var(--text-white);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 20px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-    z-index: 2000;
-    position: relative;
-    border-bottom: 3px solid var(--kinross-gold); /* Linha Dourada */
+    background: var(--dark-panel);
+    border-bottom: 3px solid var(--gold);
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0 25px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+    z-index: 2000; position: relative;
 }
 
 .logo-area { display: flex; align-items: center; gap: 15px; }
-.logo-img { height: 35px; filter: drop-shadow(0 0 2px rgba(255,255,255,0.2)); } /* Leve brilho na logo */
-
-.vertical-divider {
-    height: 25px; width: 1px;
-    background-color: #555; /* Divisória mais sutil */
-}
+.logo-img { height: 38px; filter: drop-shadow(0 0 2px rgba(255,255,255,0.1)); }
+.vertical-divider { height: 24px; width: 1px; background: rgba(255,255,255,0.2); }
 
 .system-name {
-    font-size: 20px;
-    font-weight: 700;
-    letter-spacing: 1px;
-    color: var(--kinross-gold); /* Nome do sistema em Dourado */
+    font-size: 22px; font-weight: 700; color: #fff; letter-spacing: 1px;
+}
+.system-name span { color: var(--gold); font-weight: 300; }
+
+.badge-user {
+    background: rgba(255, 193, 7, 0.15);
+    color: var(--gold);
+    padding: 6px 15px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    border: 1px solid rgba(255, 193, 7, 0.3);
 }
 
-.user-info { font-size: 14px; color: #ccc; display: flex; align-items: center; gap: 8px; }
+/* =========================================
+   3. SIDEBAR (MENU LATERAL RESPONSIVO)
+   ========================================= */
 
-/* 2. LAYOUT */
-.main-container {
-    display: flex;
-    height: calc(100vh - 63px); /* 60px header + 3px borda */
-    position: relative;
-}
+.main-container { display: flex; height: calc(100vh - 63px); }
 
-/* 3. SIDEBAR */
 .sidebar-menu {
-    width: 60px;
-    background-color: var(--kinross-gray);
-    display: flex; flex-direction: column; align-items: center;
-    padding-top: 20px;
+    width: 72px; /* Largura Fixa Desktop */
+    background: linear-gradient(180deg, #222222 0%, #1a1a1a 100%);
+    border-right: 1px solid #333;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; /* Grupos nos extremos */
+    padding: 5px 0;
     z-index: 1500;
-    box-shadow: 2px 0 5px rgba(0,0,0,0.2);
+    box-shadow: 4px 0 15px rgba(0,0,0,0.4);
+    
+    /* PREVINE CORTE EM TELAS PEQUENAS */
+    height: 100%; 
+    overflow-y: auto; 
+    overflow-x: visible; /* Permite Tooltips */
+    scrollbar-width: none;
+}
+.sidebar-menu::-webkit-scrollbar { display: none; }
+
+.menu-group {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 12px; width: 100%;
 }
 
+.menu-divider {
+    width: 40%; height: 1px; background-color: rgba(255, 255, 255, 0.1); margin: 5px 0;
+}
+
+/* Estilo dos Botões */
 .menu-btn {
-    width: 40px; height: 40px; margin-bottom: 15px;
-    border: none; background: transparent; color: #aaa;
-    font-size: 18px; cursor: pointer; border-radius: 8px; transition: 0.2s;
+    width: 48px; height: 48px;
+    border: none; background: transparent;
+    color: #888; font-size: 20px;
+    border-radius: 12px; cursor: pointer;
+    position: relative;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    display: flex; align-items: center; justify-content: center;
 }
-.menu-btn:hover { background-color: rgba(255,255,255,0.1); color: var(--kinross-gold); }
-.menu-btn.active { background-color: var(--kinross-gold); color: var(--kinross-dark); box-shadow: 0 0 10px var(--kinross-gold); }
 
-/* 4. PAINEL DESLIZANTE */
-.side-panel {
-    width: 0; background: white; border-right: 1px solid #ddd;
-    transition: width 0.3s ease; overflow: hidden;
-    position: relative; z-index: 1400; display: flex; flex-direction: column;
+.menu-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    transform: translateY(-2px);
 }
-.side-panel.open { width: 320px; }
+
+.menu-btn.active {
+    background: rgba(255, 193, 7, 0.15);
+    color: var(--gold);
+    box-shadow: 0 0 15px rgba(255, 193, 7, 0.2);
+}
+
+/* Indicador Dourado Lateral */
+.menu-btn.active::before {
+    content: ''; position: absolute;
+    left: -12px; top: 12px; bottom: 12px;
+    width: 4px; background-color: var(--gold);
+    border-radius: 0 4px 4px 0;
+    box-shadow: 0 0 8px var(--gold);
+}
+
+/* Botão Sair */
+.logout-btn:hover { color: #ff4d4d; background: rgba(255, 77, 77, 0.1); }
+
+/* Tooltips Laterais */
+.menu-btn[data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute; left: 60px; top: 50%; transform: translateY(-50%);
+    background: #333; color: var(--gold);
+    padding: 6px 12px; font-size: 12px; font-weight: 600;
+    white-space: nowrap; border-radius: 4px; border-left: 2px solid var(--gold);
+    box-shadow: 4px 4px 10px rgba(0,0,0,0.5);
+    pointer-events: none; z-index: 9999;
+    animation: fadeInRight 0.2s ease-out;
+}
+
+@keyframes fadeInRight {
+    from { opacity: 0; transform: translate(-10px, -50%); }
+    to { opacity: 1; transform: translate(0, -50%); }
+}
+
+/* =========================================
+   4. PAINEL DESLIZANTE & CONTEÚDO
+   ========================================= */
+
+.side-panel {
+    width: 0; 
+    background: #fff;
+    border-right: 1px solid var(--border);
+    transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    display: flex; 
+    flex-direction: column;
+    overflow: hidden; 
+    position: relative; 
+    z-index: 1400;
+}
+
+.side-panel.open { width: 360px; }
 
 .panel-header {
-    height: 50px; background: var(--bg-panel); flex-shrink: 0;
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 0 15px; border-bottom: 1px solid #ddd;
+    height: 60px; background: var(--bg-light);
+    border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0 20px; flex-shrink: 0;
 }
-.panel-header h3 { margin: 0; color: #333; font-size: 16px; }
-.close-panel { background: none; border: none; cursor: pointer; color: #666; font-size: 16px; }
+.panel-header h3 { font-size: 16px; color: var(--dark-panel); margin: 0; font-weight: 700; text-transform: uppercase; }
+.close-panel { border: none; background: none; color: #999; cursor: pointer; font-size: 18px; transition: color 0.2s; }
+.close-panel:hover { color: var(--danger); }
 
-.panel-content { padding: 20px; overflow-y: auto; min-width: 280px; }
+.panel-content { 
+    padding: 20px; 
+    overflow-y: auto; 
+    flex: 1; 
+    min-width: 260px; 
+}
 
-/* Componentes UI */
-.styled-select, .styled-input, .styled-textarea { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-.btn-primary { background: var(--kinross-dark); color: var(--kinross-gold); width: 100%; padding: 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+/* Widgets */
+.stats-container { display: flex; gap: 12px; margin-bottom: 20px; }
+.stat-card {
+    flex: 1; background: var(--dark-panel); color: var(--gold);
+    padding: 15px; border-radius: 8px; text-align: center;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+.stat-card strong { display: block; font-size: 24px; line-height: 1; }
+.stat-card span { font-size: 11px; text-transform: uppercase; color: #aaa; letter-spacing: 1px; }
+
+.section-box { margin-bottom: 25px; }
+.section-label { display: block; font-size: 13px; font-weight: 600; color: #555; margin-bottom: 8px; text-transform: uppercase; }
+.divider { height: 1px; background: #eee; margin: 20px 0; }
+
+/* Inputs */
+.input-group { display: flex; gap: 8px; margin-bottom: 10px; }
+.styled-input, .styled-select {
+    width: 100%; padding: 10px 12px;
+    border: 1px solid #ccc; border-radius: 6px;
+    font-size: 14px; outline: none; transition: border-color 0.2s;
+    box-sizing: border-box;
+}
+.styled-input:focus, .styled-select:focus { border-color: var(--gold-dim); box-shadow: 0 0 0 2px rgba(255, 193, 7, 0.1); }
+
+.styled-select-multiple {
+    width: 100%; border: 1px solid #ccc; border-radius: 6px;
+    padding: 5px; height: 120px; overflow-y: auto;
+}
+.styled-select-multiple option { padding: 8px; border-bottom: 1px solid #f5f5f5; cursor: pointer; }
+.styled-select-multiple option:hover { background-color: #f0f0f0; }
+.styled-select-multiple option:checked { background-color: var(--dark-panel); color: var(--gold); }
+
+/* Color Picker */
+.color-picker-row { display: flex; align-items: center; gap: 10px; margin: 10px 0; }
+.styled-color { border: none; width: 40px; height: 40px; cursor: pointer; background: none; }
+.styled-color-large { border: none; width: 100%; height: 40px; cursor: pointer; }
+
+/* Botões */
+.btn-primary {
+    background: var(--dark-panel); color: var(--gold);
+    width: 100%; padding: 12px; border: none; border-radius: 6px;
+    font-weight: 600; cursor: pointer; transition: opacity 0.2s; margin-top: 10px;
+}
 .btn-primary:hover { opacity: 0.9; }
 
-.stats-container { display: flex; gap: 10px; margin-bottom: 20px; }
-.stat-card { background: var(--bg-panel); border: 1px solid #ddd; border-radius: 6px; padding: 10px; flex: 1; text-align: center; }
-.stat-card strong { font-size: 20px; color: var(--kinross-dark); display: block; }
+.btn-secondary {
+    background: #fff; border: 1px solid #ccc; color: #444;
+    padding: 10px; border-radius: 6px; cursor: pointer;
+    font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: all 0.2s;
+}
+.btn-secondary:hover { background: #eee; border-color: #bbb; }
+.btn-full { width: 100%; }
 
-/* 5. MODAL (Popups) */
+.btn-icon-bg {
+    width: 42px; border: none; border-radius: 6px; cursor: pointer; color: white; display: flex; align-items: center; justify-content: center;
+}
+.btn-icon-bg.danger { background-color: var(--danger); }
+.btn-icon-bg.danger:hover { background-color: #c82333; }
+
+.action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* Timeline Info Box */
+.info-box {
+    background: #fff8e1; border-left: 4px solid var(--gold);
+    border-radius: 4px; padding: 15px; margin-top: 15px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+.info-header { margin-bottom: 5px; color: var(--dark-panel); }
+.highlight { font-weight: bold; color: var(--dark-panel); }
+.btn-sm.btn-gold {
+    background: var(--gold); color: var(--dark-panel); border: none;
+    padding: 6px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 12px; margin-top: 8px;
+}
+
+/* Lista de Ativos */
+.lista-ativos { list-style: none; padding: 0; margin: 0; }
+.lista-ativos li {
+    background: #fff; border: 1px solid #eee; border-radius: 6px;
+    padding: 12px; margin-bottom: 8px;
+    display: flex; justify-content: space-between; align-items: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+.tag-tipo {
+    font-size: 10px; text-transform: uppercase; background: #eee;
+    padding: 3px 6px; border-radius: 4px; margin-left: 8px; color: #666;
+}
+.btn-del-item { background: none; border: none; color: #ccc; cursor: pointer; }
+.btn-del-item:hover { color: var(--danger); }
+
+/* Ajuda Cards */
+.help-card { background: white; padding: 15px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 15px; }
+.help-card h5 { margin: 0 0 5px 0; color: var(--dark-panel); font-size: 14px; }
+.help-card p { margin: 0; font-size: 13px; color: #666; }
+
+/* =========================================
+   5. MAPA & MODAIS
+   ========================================= */
+
+#map { flex-grow: 1; height: 100%; z-index: 1; background: #ddd; }
+.custom-marker-icon { filter: drop-shadow(3px 5px 2px rgba(0,0,0,0.4)); transition: transform 0.2s; }
+.custom-marker-icon:hover { transform: scale(1.1); z-index: 1000 !important; }
+
+/* Modais */
 .modal-overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.6); z-index: 3000;
-    display: flex; align-items: center; justify-content: center;
-    backdrop-filter: blur(3px);
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+    z-index: 3000; display: flex; align-items: center; justify-content: center;
 }
-.modal-card { background: white; width: 400px; border-radius: 8px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-.modal-header { background: var(--kinross-dark); color: var(--kinross-gold); padding: 15px; display: flex; justify-content: space-between; }
-.modal-header button { background: none; border: none; color: white; cursor: pointer; font-size: 18px; }
-.modal-body { padding: 20px; }
-.modal-footer { padding: 15px; background: #eee; display: flex; justify-content: flex-end; gap: 10px; }
 
-.btn-save { background: var(--kinross-gold); color: var(--kinross-dark); border: none; padding: 10px 20px; border-radius: 4px; font-weight: bold; cursor: pointer; }
-.btn-cancel { background: #ccc; color: #333; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; }
+.modal-card {
+    background: white; width: 400px; border-radius: 8px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.4); overflow: hidden;
+    display: flex; flex-direction: column;
+}
 
-.color-picker-wrapper { display: flex; align-items: center; gap: 10px; background: #f9f9f9; padding: 8px; border-radius: 4px; border: 1px solid #ddd; margin-bottom: 15px; }
-.styled-color { border: none; width: 40px; height: 35px; background: none; cursor: pointer; }
+.modal-header {
+    background: var(--dark-panel); color: var(--gold); padding: 15px 20px;
+    display: flex; justify-content: space-between; align-items: center;
+}
+.modal-header h3 { margin: 0; font-size: 16px; }
 
-/* Mapa */
-#map { flex-grow: 1; height: 100%; z-index: 1; }
-.custom-marker-icon { filter: drop-shadow(2px 4px 4px rgba(0,0,0,0.4)); }
+.modal-body { 
+    padding: 25px; 
+    background: #fcfcfc; 
+    display: flex; 
+    flex-direction: column; 
+    gap: 10px; 
+}
+
+.modal-footer {
+    padding: 15px 25px; background: #f0f0f0; display: flex; justify-content: flex-end; gap: 10px;
+}
+.btn-save { background: var(--dark-panel); color: var(--gold); border: none; padding: 10px 20px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+.btn-cancel { background: white; border: 1px solid #ccc; padding: 10px 20px; border-radius: 4px; cursor: pointer; }
+
+/* Animações */
+.bounceIn { animation: bounceIn 0.4s cubic-bezier(0.215, 0.610, 0.355, 1.000); }
+@keyframes bounceIn {
+    0% { opacity: 0; transform: scale3d(.3, .3, .3); }
+    50% { opacity: 1; transform: scale3d(1.05, 1.05, 1.05); }
+    70% { transform: scale3d(.9, .9, .9); }
+    100% { opacity: 1; transform: scale3d(1, 1, 1); }
+}
+
+.fadeIn { animation: fadeIn 0.3s; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* =========================================
+   6. MOBILE RESPONSIVE
+   ========================================= */
+
+@media (max-width: 768px) {
+    .main-container { flex-direction: column-reverse; } /* Sidebar em baixo */
+
+    .sidebar-menu {
+        width: 100%; height: 60px;
+        flex-direction: row; /* Horizontal */
+        border-right: none; border-top: 1px solid #333;
+        padding: 0 15px; box-shadow: 0 -4px 10px rgba(0,0,0,0.2);
+        overflow-y: hidden; overflow-x: auto;
+    }
+
+    .menu-group { flex-direction: row; width: auto; }
+    .menu-divider { width: 1px; height: 25px; margin: 0 10px; }
+
+    /* Indicador ativo muda para baixo */
+    .menu-btn.active::before {
+        left: 50%; bottom: 0; top: auto;
+        transform: translateX(-50%);
+        width: 20px; height: 3px; border-radius: 4px 4px 0 0;
+    }
+    
+    /* Esconde tooltips no mobile */
+    .menu-btn[data-tooltip]:hover::after { display: none; }
+    
+    /* Painel ocupa tela toda */
+    .side-panel.open {
+        width: 100%; position: absolute;
+        bottom: 60px; height: calc(100% - 120px);
+        z-index: 2000;
+    }
+}
+
+/* =========================================
+   7. NOVOS COMPONENTES (TOAST & MODALS)
+   ========================================= */
+
+/* TOAST CONTAINER */
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.toast {
+    background: #333;
+    color: white;
+    padding: 15px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 250px;
+    animation: slideInRight 0.3s ease-out forwards;
+    border-left: 5px solid #888;
+}
+
+.toast.success { border-left-color: var(--success); }
+.toast.error { border-left-color: var(--danger); }
+.toast.info { border-left-color: var(--gold); color: #fff; }
+
+.toast.hiding {
+    animation: fadeOutRight 0.5s ease-in forwards;
+}
+
+@keyframes slideInRight {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+@keyframes fadeOutRight {
+    from { transform: translateX(0); opacity: 1; }
+    to { transform: translateX(100%); opacity: 0; }
+}
+
+/* LISTA COM CURSOR POINTER PARA EDITAR */
+.lista-ativos li { cursor: pointer; transition: background 0.2s; }
+.lista-ativos li:hover { background: #f9f9f9; border-color: var(--gold); }
+
+/* =========================================
+   FIX DOS ÍCONES NO MAPA (ZOOM SUAVE)
+   ========================================= */
+
+/* Classe base para o container do ícone (definida no JS) */
+.marker-container {
+    background: transparent;
+    border: none;
+}
+
+/* 1. Estilo para Ícones de IMAGEM (Uploads) */
+.marker-img-content {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 3px 4px rgba(0,0,0,0.4)); /* Sombra bonita */
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Animação elástica suave */
+    transform-origin: center bottom; /* O zoom cresce a partir da base */
+}
+
+/* Hover na div pai afeta a imagem filha */
+.marker-container:hover .marker-img-content {
+    transform: scale(1.4) translateY(-5px); /* Aumenta e sobe um pouquinho */
+    z-index: 9999; /* Garante que fique por cima */
+}
+
+/* 2. Estilo para Ícones SVG (Pinos Coloridos Padrão) */
+.marker-svg-content {
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 3px 2px rgba(0,0,0,0.3));
+    transition: transform 0.2s ease-out;
+    transform-origin: center bottom;
+}
+
+.marker-container:hover .marker-svg-content {
+    transform: scale(1.2) translateY(-3px);
+}
+
+/* Container de Preview de Upload */
+#previewContainer {
+    background: #fff;
+    border: 1px dashed #ccc;
+    border-radius: 4px;
+    padding: 5px;
+    margin-top: 5px;
+}
+
+/* =========================================
+   ESTILO PROFISSIONAL DO MODAL DE EDIÇÃO
+   ========================================= */
+
+/* Botão de fechar no header */
+.close-modal-btn {
+    background: transparent;
+    border: none;
+    color: rgba(255,255,255,0.7);
+    font-size: 18px;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+.close-modal-btn:hover { color: #fff; }
+
+/* Grid do Formulário */
+.edit-form-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px; /* Espaçamento generoso entre campos */
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.form-group label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #555;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.form-group label i { color: var(--gold-dim); }
+
+/* Inputs Melhorados */
+.styled-input, .styled-textarea {
+    background-color: #fcfcfc;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 12px;
+    font-size: 14px;
+    transition: all 0.2s;
+    width: 100%;
+    box-sizing: border-box; /* Garante que padding não estoure largura */
+}
+
+.styled-input:focus, .styled-textarea:focus {
+    background-color: #fff;
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.1);
+    outline: none;
+}
+
+/* --- SELETOR DE COR MODERNO (Custom) --- */
+.color-picker-modern {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    background: #fcfcfc;
+    border: 1px solid #e0e0e0;
+    padding: 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.color-picker-modern:hover {
+    border-color: #bbb;
+    background: #f5f5f5;
+}
+
+/* Esconde o input nativo feio, mas mantém funcional */
+.color-input-hidden {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+
+/* A barra de cor visível */
+.color-preview {
+    width: 50px;
+    height: 30px;
+    border-radius: 6px;
+    border: 1px solid rgba(0,0,0,0.1);
+    background-color: #007bff; /* Cor inicial, será alterada via JS */
+    box-shadow: inset 0 0 5px rgba(0,0,0,0.1);
+}
+
+.color-label {
+    font-size: 13px;
+    color: #777;
+    font-weight: 500;
+}
+
+.creator-tag { 
+    position: absolute; 
+    bottom: 15px; 
+    color: #444444a4; 
+    font-size: 12px; 
+}

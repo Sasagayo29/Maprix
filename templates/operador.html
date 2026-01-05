@@ -4,33 +4,41 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Maprix Operador</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/operador.css') }}">
 </head>
 <body>
 
     <div id="tela-login" class="login-container">
         <div class="brand-area">
-            <i class="fa-solid fa-earth-americas logo-icon"></i>
+            <div class="logo-circle">
+                <i class="fa-solid fa-earth-americas logo-icon"></i>
+            </div>
             <h1>MAPRIX</h1>
-            <p>Acesso Operacional</p>
+            <p>Enterprise Mobile</p>
         </div>
-        
+
         <div class="login-card">
             <div class="input-group">
-                <i class="fa-solid fa-caravan input-icon"></i>
-                <input type="text" id="inputEquipamento" placeholder="ID do Equipamento">
+                <i class="fa-solid fa-truck-monster input-icon"></i>
+                <input type="text" id="inputEquipamento" list="listaEquipamentos" placeholder="Qual equipamento?" autocomplete="off">
+                <datalist id="listaEquipamentos">
+                    </datalist>
+                <span class="input-status" id="statusEquip"></span>
             </div>
-            
+
             <div class="input-group">
-                <i class="fa-solid fa-user input-icon"></i>
-                <input type="text" id="inputOperador" placeholder="Matrícula/Nome">
+                <i class="fa-solid fa-id-card input-icon"></i>
+                <input type="text" id="inputOperador" placeholder="Sua Matrícula ou Nome">
             </div>
-            
-            <button class="btn-login" onclick="iniciarTurno()">
-                INICIAR TURNO <i class="fas fa-arrow-right"></i>
+
+            <button type="button" class="btn-login" onclick="iniciarTurno()">
+                    INICIAR TURNO <i class="fas fa-arrow-right"></i>
             </button>
         </div>
+        
+        <div class="version-tag">v2.0 Enterprise</div>
     </div>
 
     <div id="tela-operacao" class="app-container" style="display: none;">
@@ -38,57 +46,87 @@
         <div class="top-section">
             <header class="app-header">
                 <div class="equip-info">
-                    <small>Equipamento Ativo:</small>
+                    <small>OPERANDO:</small>
                     <strong id="displayEquipamento">--</strong>
                 </div>
-                <button class="btn-sair" onclick="encerrarTurno()"><i class="fas fa-power-off"></i></button>
+                <button class="btn-sair" onclick="abrirModalLogout()">
+                    <i class="fas fa-power-off"></i>
+                </button>
             </header>
-
+            
             <div id="statusIndicator" class="status-bar online">
-                <i class="fas fa-wifi"></i> <span>Conectado</span>
+                <i class="fas fa-wifi"></i> <span>Sincronizado</span>
             </div>
         </div>
 
         <main class="main-action-section">
             <div class="feedback-area">
-                <div id="msgFeedback" class="feedback-msg">Pronto para operar</div>
+                <div id="msgFeedback" class="feedback-msg">Aguardando comando...</div>
             </div>
-
+            
             <button class="btn-big-trigger" onclick="capturarLocalizacao()" id="mainBtn">
                 <div class="ring-effect"></div>
                 <i class="fas fa-map-marker-alt icon-main"></i>
                 <span class="label-main">REGISTRAR<br>POSIÇÃO</span>
             </button>
+
+            <button class="btn-checklist-trigger" onclick="abrirChecklist()">
+    <i class="fas fa-clipboard-check"></i> REALIZAR CHECKLIST
+</button>
+
+<div id="modalChecklistOp" class="modal-overlay" style="display: none; align-items: flex-start; overflow-y: auto; padding-top: 20px;">
+    <div class="modal-card bounceIn" style="width: 95%; max-width: 500px; margin-bottom: 20px;">
+        <div class="modal-header">
+            <h3><i class="fas fa-clipboard-list"></i> Checklist Pré-Operacional</h3>
+            <button onclick="fecharModalChecklist()" class="close-modal-btn"><i class="fas fa-times"></i></button>
+        </div>
+        
+        <div class="modal-body">
+            <p style="font-size: 13px; color: #aaa; margin-bottom: 15px;">
+                Verifique os itens abaixo para o equipamento <strong id="chkEquipNome" style="color:var(--gold)">--</strong>.
+            </p>
+
+            <form id="formChecklist">
+                <div id="containerPerguntas" class="checklist-container">
+                    </div>
+            </form>
+        </div>
+
+        <div class="modal-footer">
+            <button class="btn-cancel" onclick="fecharModalChecklist()">Cancelar</button>
+            <button class="btn-save" onclick="enviarChecklist()"><i class="fas fa-paper-plane"></i> Enviar</button>
+        </div>
+    </div>
+</div>
+
         </main>
 
         <footer class="bottom-section">
             <div class="obs-drawer">
-                <label for="inputObs"><i class="fas fa-comment-alt"></i> Observação Rápida:</label>
-                <textarea id="inputObs" placeholder="Toque para adicionar nota..."></textarea>
+                <label><i class="fas fa-comment-dots"></i> Observação (Opcional):</label>
+                <textarea id="inputObs" placeholder="Ex: movimentação ph_11..."></textarea>
             </div>
-
+            
             <div class="sync-bar">
-                <div class="sync-status">
-                    <i class="fas fa-database"></i> Pendentes: <strong id="countPendentes">0</strong>
+                <div class="sync-info">
+                    <span class="pendentes-label">Pendentes</span>
+                    <strong id="countPendentes">0</strong>
                 </div>
                 <button id="btnSync" class="btn-sync" onclick="sincronizarPendentes()" disabled>
-                    <i class="fas fa-sync"></i> SINCRONIZAR
+                    <i class="fas fa-cloud-upload-alt"></i> ENVIAR
                 </button>
             </div>
         </footer>
     </div>
 
     <div id="modalLogout" class="modal-overlay" style="display: none;">
-        <div class="modal-box">
-            <div class="modal-icon">
-                <i class="fas fa-power-off"></i>
-            </div>
+        <div class="modal-box bounceIn">
+            <div class="modal-icon"><i class="fas fa-sign-out-alt"></i></div>
             <h3>Encerrar Turno?</h3>
-            <p>Você será desconectado e voltará para a tela de login.</p>
-            
+            <p>Seus registros pendentes serão salvos, mas você precisará fazer login novamente.</p>
             <div class="modal-actions">
-                <button class="btn-modal-cancel" onclick="fecharModalLogout()">VOLTAR</button>
-                <button class="btn-modal-confirm" onclick="confirmarLogout()">ENCERRAR</button>
+                <button class="btn-modal-cancel" onclick="fecharModalLogout()">Cancelar</button>
+                <button class="btn-modal-confirm" onclick="confirmarLogout()">Sair Agora</button>
             </div>
         </div>
     </div>
