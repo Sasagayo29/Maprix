@@ -98,6 +98,116 @@ def calcular_status_bateria(data_fab_str):
     except:
         return "Erro Data", "cinza"
 
+# ==========================================
+# 5. BACKUP COMPLETO (TODAS AS TABELAS)
+# ==========================================
+
+@app.route('/api/backup_dados')
+def backup_dados():
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        dados = {
+            "metadata": {
+                "versao": "2.0",
+                "data": datetime.now().isoformat()
+            }
+        }
+        
+        # Lista de todas as tabelas para salvar
+        tabelas = [
+            'config_sistema',
+            'tipos_equipamento',
+            'equipamentos_cadastrados',
+            'regioes',
+            'areas',
+            'registros',
+            'checklist_perguntas',
+            'checklist_realizados',
+            'checklist_itens'
+        ]
+        
+        for tabela in tabelas:
+            cur.execute(f"SELECT * FROM {tabela}")
+            # Converte as linhas do banco para dicionários
+            dados[tabela] = [dict(row) for row in cur.fetchall()]
+        
+        cur.close()
+        conn.close()
+        
+        # Cria o arquivo JSON na memória
+        str_io = io.BytesIO()
+        # default=str converte datas e objetos complexos para string automaticamente
+        str_io.write(json.dumps(dados, indent=4, default=str).encode('utf-8'))
+        str_io.seek(0)
+        
+        nome_arquivo = f"Maprix_FullBackup_{datetime.now().strftime('%Y-%m-%d_%Hh%M')}.json"
+        
+        return send_file(
+            str_io, 
+            mimetype='application/json',
+            as_attachment=True, 
+            download_name=nome_arquivo
+        )
+    except Exception as e:
+        return jsonify({"erro": str(e)}), 500
+
+# ==========================================
+# 5. BACKUP COMPLETO (TODAS AS TABELAS)
+# ==========================================
+
+@app.route('/api/backup_dados')
+def backup_dados():
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        dados = {
+            "metadata": {
+                "versao": "2.0",
+                "data": datetime.now().isoformat()
+            }
+        }
+        
+        # Lista de todas as tabelas para salvar
+        tabelas = [
+            'config_sistema',
+            'tipos_equipamento',
+            'equipamentos_cadastrados',
+            'regioes',
+            'areas',
+            'registros',
+            'checklist_perguntas',
+            'checklist_realizados',
+            'checklist_itens'
+        ]
+        
+        for tabela in tabelas:
+            cur.execute(f"SELECT * FROM {tabela}")
+            # Converte as linhas do banco para dicionários
+            dados[tabela] = [dict(row) for row in cur.fetchall()]
+        
+        cur.close()
+        conn.close()
+        
+        # Cria o arquivo JSON na memória
+        str_io = io.BytesIO()
+        # default=str converte datas e objetos complexos para string automaticamente
+        str_io.write(json.dumps(dados, indent=4, default=str).encode('utf-8'))
+        str_io.seek(0)
+        
+        nome_arquivo = f"Maprix_FullBackup_{datetime.now().strftime('%Y-%m-%d_%Hh%M')}.json"
+        
+        return send_file(
+            str_io, 
+            mimetype='application/json',
+            as_attachment=True, 
+            download_name=nome_arquivo
+        )
+    except Exception as e:
+        return jsonify({"erro": str(e)}), 500
+
 @app.route('/api/restaurar_dados', methods=['POST'])
 def restaurar_dados():
     if 'file' not in request.files: return jsonify({"erro": "Sem arquivo"}), 400
@@ -108,76 +218,89 @@ def restaurar_dados():
         conn = get_db_connection()
         cur = conn.cursor()
         
+        # A ORDEM IMPORTA AQUI (Devido às Chaves Estrangeiras)
+        # 1. Tabelas independentes (Config, Tipos, Regiões, Áreas)
+        # 2. Tabelas dependentes (Ativos dependem de Tipos)
+        # 3. Checklists (Perguntas dependem de Tipos, Itens dependem de Realizados)
+
         # 1. Configurações
         if 'config_sistema' in dados:
             for c in dados['config_sistema']:
                 cur.execute("INSERT INTO config_sistema (chave, valor) VALUES (%s, %s) ON CONFLICT (chave) DO UPDATE SET valor = EXCLUDED.valor", (c['chave'], c['valor']))
 
-        # 2. Tipos
+        # 2. Tipos (Base para Ativos e Checklists)
         if 'tipos_equipamento' in dados:
             for t in dados['tipos_equipamento']:
                 cur.execute("INSERT INTO tipos_equipamento (id, nome, icone) VALUES (%s, %s, %s) ON CONFLICT (id) DO NOTHING", (t['id'], t['nome'], t['icone']))
 
-        # 3. Regiões
+        # 3. Regiões Salvas
         if 'regioes' in dados:
             for r in dados['regioes']:
                 cur.execute("INSERT INTO regioes (id, nome, latitude, longitude, zoom) VALUES (%s, %s, %s, %s, %s) ON CONFLICT (id) DO NOTHING", (r['id'], r['nome'], r['latitude'], r['longitude'], r['zoom']))
 
-        # 4. Áreas
+        # 4. Áreas (Geofencing)
         if 'areas' in dados:
             for a in dados['areas']:
                 cur.execute("INSERT INTO areas (id, nome, geometria, cor) VALUES (%s, %s, %s, %s) ON CONFLICT (id) DO NOTHING", (a['id'], a['nome'], a['geometria'], a['cor']))
 
-        # 5. Ativos
+        # 5. Ativos (Frota)
         if 'equipamentos_cadastrados' in dados:
             for e in dados['equipamentos_cadastrados']:
                 cur.execute("INSERT INTO equipamentos_cadastrados (id, nome, tipo_id, cor_padrao, bateria_fabricacao) VALUES (%s, %s, %s, %s, %s) ON CONFLICT (id) DO NOTHING", 
                             (e['id'], e['nome'], e['tipo_id'], e['cor_padrao'], e['bateria_fabricacao']))
 
-        # 6. Registros
+        # 6. Registros (Histórico de Posição)
         if 'registros' in dados:
             for r in dados['registros']:
                 cur.execute("INSERT INTO registros (id, equipamento, latitude, longitude, data_hora, sincronizado_em, observacao, cor) VALUES (%s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT (id) DO NOTHING", 
                             (r['id'], r['equipamento'], r['latitude'], r['longitude'], r['data_hora'], r['sincronizado_em'], r['observacao'], r['cor']))
 
-        # 7. Perguntas
+        # 7. Perguntas do Checklist (Template)
         if 'checklist_perguntas' in dados:
             for p in dados['checklist_perguntas']:
                 cur.execute("INSERT INTO checklist_perguntas (id, tipo_id, texto) VALUES (%s, %s, %s) ON CONFLICT (id) DO NOTHING", (p['id'], p['tipo_id'], p['texto']))
 
-        # 8. Checklists Realizados (O PAI)
+        # 8. Checklists Realizados (Cabeçalho)
         if 'checklist_realizados' in dados:
             for c in dados['checklist_realizados']:
                 cur.execute("INSERT INTO checklist_realizados (id, equipamento, operador, data_hora) VALUES (%s, %s, %s, %s) ON CONFLICT (id) DO NOTHING", 
                             (c['id'], c['equipamento'], c['operador'], c['data_hora']))
 
-        # 9. Itens do Checklist (CORREÇÃO DE SEGURANÇA AQUI)
+        # 9. Itens do Checklist (Respostas) - Depende de 'checklist_realizados'
         if 'checklist_itens' in dados:
             for i in dados['checklist_itens']:
-                # Truque SQL: INSERT ... SELECT ... WHERE EXISTS
-                # Isso só insere o item SE o pai (checklist_realizados) existir no banco.
-                # Se o pai não existir (dado órfão), ele ignora silenciosamente e não dá erro 500.
-                cur.execute("""
-                    INSERT INTO checklist_itens (id, checklist_id, pergunta, conforme, observacao, foto_path)
-                    SELECT %s, %s, %s, %s, %s, %s
-                    WHERE EXISTS (SELECT 1 FROM checklist_realizados WHERE id = %s)
-                    ON CONFLICT (id) DO NOTHING
-                """, (i['id'], i['checklist_id'], i['pergunta'], i['conforme'], i['observacao'], i['foto_path'], i['checklist_id']))
+                cur.execute("INSERT INTO checklist_itens (id, checklist_id, pergunta, conforme, observacao, foto_path) VALUES (%s, %s, %s, %s, %s, %s) ON CONFLICT (id) DO NOTHING",
+                            (i['id'], i['checklist_id'], i['pergunta'], i['conforme'], i['observacao'], i['foto_path']))
 
         conn.commit()
         cur.close()
         conn.close()
         
+        # Importante: Corrige a numeração automática dos IDs após inserir manualmente
         reset_sequences()
         
-        return jsonify({"status": "sucesso", "mensagem": "Backup restaurado com sucesso! (Itens órfãos ignorados)"}), 200
+        return jsonify({"status": "sucesso", "mensagem": "Backup restaurado com sucesso!"}), 200
     except Exception as e:
         print(f"Erro Restore: {e}")
-        # Importante: Rollback em caso de erro grave para não travar o banco
-        try:
-            if conn: conn.rollback()
-        except: pass
         return jsonify({"erro": str(e)}), 500
+
+def reset_sequences():
+    """Corrige o contador ID (SERIAL) de todas as tabelas após restauração"""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    tabelas = [
+        'registros', 'areas', 'equipamentos_cadastrados', 'tipos_equipamento', 
+        'checklist_realizados', 'checklist_itens', 'regioes', 'checklist_perguntas'
+    ]
+    for tab in tabelas:
+        try:
+            # Comando mágico do Postgres que ajusta o 'nextval' para o maior ID existente + 1
+            cur.execute(f"SELECT setval(pg_get_serial_sequence('{tab}', 'id'), coalesce(max(id),0) + 1, false) FROM {tab};")
+        except Exception as ex:
+            print(f"Aviso sequence {tab}: {ex}")
+    conn.commit()
+    cur.close()
+    conn.close()
 
 # ==========================================
 # ROTAS DE TELA
