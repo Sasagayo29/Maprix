@@ -1,75 +1,60 @@
 /**
- * MAPRIX MOBILE - Operador Logic v4.0
- * Correções: Checklist Dinâmico (Só bloqueia se houver perguntas) e Hora Local.
+ * MAPRIX MOBILE - Operador Logic v5.0 (Correção Sync & Time)
  */
 
 // =========================================================
 // 1. VARIÁVEIS GLOBAIS
 // =========================================================
 let equipamentosConhecidos = [];
-let listaCompletaAtivos = []; // Cache para buscar Tipo ID
+let listaCompletaAtivos = []; 
 let checklistRealizado = false;
-let checklistNecessario = true; // Novo flag
+let checklistNecessario = true; // Padrão: Bloqueado até provar o contrário
 let tempEquipNome = "";
 
 // =========================================================
 // 2. UTILITÁRIOS VISUAIS
 // =========================================================
-
+// (Mantenha as funções showToast, showAlert, fecharModalAlert iguais ao que você já tem)
 function showToast(msg, type = 'default') {
     const container = document.getElementById('toastContainer');
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
-    
     let icon = 'info-circle';
     if(type === 'success') icon = 'check-circle';
     if(type === 'error') icon = 'times-circle';
     if(type === 'warning') icon = 'exclamation-circle';
-
     toast.innerHTML = `<i class="fas fa-${icon}"></i> <span>${msg}</span>`;
     container.appendChild(toast);
-
-    setTimeout(() => {
-        toast.classList.add('hiding');
-        setTimeout(() => toast.remove(), 400);
-    }, 3000);
+    setTimeout(() => { toast.classList.add('hiding'); setTimeout(() => toast.remove(), 400); }, 3000);
 }
 
 function showAlert(title, msg, type = 'warning', callback = null) {
     const modal = document.getElementById('modalAlert');
     const iconDiv = document.getElementById('alertIcon');
     const btn = document.getElementById('btnAlertOk');
-    
     document.getElementById('alertTitle').innerText = title;
     document.getElementById('alertMessage').innerText = msg;
-    
     iconDiv.className = `modal-icon ${type}`;
-    let iconHtml = '<i class="fas fa-exclamation-triangle"></i>';
-    if(type === 'success') iconHtml = '<i class="fas fa-check"></i>';
-    if(type === 'error') iconHtml = '<i class="fas fa-times"></i>';
-    iconDiv.innerHTML = iconHtml;
-
+    iconDiv.innerHTML = type === 'success' ? '<i class="fas fa-check"></i>' : (type === 'error' ? '<i class="fas fa-times"></i>' : '<i class="fas fa-exclamation-triangle"></i>');
     const newBtn = btn.cloneNode(true);
     btn.parentNode.replaceChild(newBtn, btn);
-    
-    newBtn.onclick = function() {
-        modal.style.display = 'none';
-        if(callback) callback();
-    };
-
+    newBtn.onclick = function() { modal.style.display = 'none'; if(callback) callback(); };
     modal.style.display = 'flex';
 }
-
 function fecharModalAlert() { document.getElementById('modalAlert').style.display = 'none'; }
 
 // =========================================================
-// 3. INICIALIZAÇÃO E LOGIN
+// 3. INICIALIZAÇÃO (CORRIGIDA COM ASYNC/AWAIT)
 // =========================================================
 
-document.addEventListener("DOMContentLoaded", () => {
-    carregarListaAtivos();
+document.addEventListener("DOMContentLoaded", async () => {
+    // 1. Bloqueia visualmente o botão ao carregar
+    atualizarEstadoBotaoPrincipal(false);
+
+    // 2. Espera carregar a lista de ativos ANTES de tentar logar
+    await carregarListaAtivos();
     
-    // Verifica sessão ativa e já valida as regras
+    // 3. Só agora verifica sessão ativa
     const session = JSON.parse(localStorage.getItem('maprix_session'));
     if (session) {
         entrarNoApp(session.equipamento, session.operador);
@@ -79,16 +64,15 @@ document.addEventListener("DOMContentLoaded", () => {
     window.addEventListener('online', verificarConexao);
     window.addEventListener('offline', verificarConexao);
     atualizarPendentes();
-    
-    // Bloqueia visualmente o botão até validarmos a regra
-    atualizarEstadoBotaoPrincipal(false);
 });
 
+// Transforma carregar lista em Promise para podermos usar 'await'
 function carregarListaAtivos() {
-    fetch('/api/ativos')
+    return fetch('/api/ativos')
         .then(r => r.json())
         .then(lista => {
-            listaCompletaAtivos = lista; // Guarda lista completa com IDs e Tipos
+            console.log("Lista de ativos carregada:", lista.length);
+            listaCompletaAtivos = lista;
             equipamentosConhecidos = lista.map(item => item.nome);
             
             const ul = document.getElementById('listaSuspensa');
@@ -103,7 +87,7 @@ function carregarListaAtivos() {
                 ul.appendChild(li);
             });
         })
-        .catch(() => console.log("Offline: Usando cache"));
+        .catch(() => console.log("Offline: Usando cache de navegador"));
 }
 
 function filtrarEquipamentos() {
@@ -183,26 +167,25 @@ function entrarNoApp(equip, oper) {
     document.getElementById('tela-operacao').style.display = 'flex';
     document.getElementById('displayEquipamento').innerText = equip;
     
-    // --- LÓGICA VITAL: VERIFICAR SE PRECISA DE CHECKLIST ---
+    // Chama a verificação
     verificarRegrasDeAcesso(equip);
 }
 
 // === NOVO: LÓGICA INTELIGENTE DE BLOQUEIO ===
 async function verificarRegrasDeAcesso(nomeEquipamento) {
     const feedback = document.getElementById('msgFeedback');
-    feedback.innerText = "Verificando regras...";
+    feedback.innerText = "Verificando checklist...";
     
-    // 1. Achar o equipamento na lista completa para pegar o ID do Tipo
+    // Busca o ativo na lista JÁ CARREGADA
     const ativo = listaCompletaAtivos.find(a => a.nome === nomeEquipamento);
     
+    // Se não achar o ativo ou ele não tiver tipo, libera geral
     if (!ativo || !ativo.tipo_id) {
-        // Se não tem tipo definido, não tem checklist. Libera.
-        liberarAcesso("Checklist não configurado (Tipo indefinido)");
+        liberarAcesso("Sem configuração de checklist");
         return;
     }
 
     try {
-        // 2. Buscar perguntas para esse tipo
         const res = await fetch(`/api/checklist/config/${ativo.tipo_id}`);
         const perguntas = await res.json();
 
@@ -210,27 +193,27 @@ async function verificarRegrasDeAcesso(nomeEquipamento) {
             // TEM PERGUNTAS: BLOQUEIA
             checklistNecessario = true;
             checklistRealizado = false;
-            atualizarEstadoBotaoPrincipal(false); // Cinza/Bloqueado
-            feedback.innerText = "Aguardando Checklist...";
+            atualizarEstadoBotaoPrincipal(false);
+            feedback.innerText = "Checklist Pendente";
             
-            // Sugere abrir o checklist imediatamente
+            // Verifica se o usuário já fez checklist HOJE localmente (opcional, mas bom)
+            // (Lógica simples mantida: bloqueia e pede envio)
             setTimeout(() => {
-                showToast("Checklist Obrigatório pendente", "warning");
-            }, 1000);
+                showToast("Realize o checklist para liberar.", "warning");
+            }, 800);
         } else {
-            // SEM PERGUNTAS: LIBERA
-            liberarAcesso("Checklist Dispensado (Sem itens)");
+            // SEM PERGUNTAS: LIBERA O LOOP
+            liberarAcesso("Não há itens para verificar");
         }
     } catch (e) {
-        console.error("Erro ao validar regras", e);
-        // Em caso de erro de rede, assume bloqueado por segurança ou libera dependendo da sua política.
-        // Aqui vou manter bloqueado e pedir para tentar abrir o checklist (que vai falhar e mostrar erro)
-        showToast("Erro ao verificar regras online.", "error");
+        console.error("Erro regra:", e);
+        // Em caso de erro de rede, mantém o estado atual ou avisa
+        showToast("Erro ao verificar regras.", "error");
     }
 }
 
 function liberarAcesso(motivo) {
-    console.log("Acesso liberado: " + motivo);
+    console.log("Liberado:", motivo);
     checklistNecessario = false;
     checklistRealizado = true;
     atualizarEstadoBotaoPrincipal(true);

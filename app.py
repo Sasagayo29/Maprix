@@ -683,21 +683,26 @@ def submit_checklist():
         equipamento = request.form.get('equipamento')
         operador = request.form.get('operador')
         
+        # --- CORREÇÃO: Usa a hora enviada pelo celular se existir ---
         data_hora_recebida = request.form.get('data_hora_local')
         
         if data_hora_recebida:
             data_final = data_hora_recebida
         else:
             data_final = datetime.now().isoformat()
+        # ------------------------------------------------------------
         
         conn = get_db_connection()
         cur = conn.cursor()
+        
+        # Insere Cabeçalho
         cur.execute(
             'INSERT INTO checklist_realizados (equipamento, operador, data_hora) VALUES (%s, %s, %s) RETURNING id',
             (equipamento, operador, data_final)
         )
         checklist_id = cur.fetchone()['id']
         
+        # Processa Itens
         perguntas_map = {} 
         for key in request.form:
             if key.startswith('item_'):
@@ -716,7 +721,6 @@ def submit_checklist():
             foto_path = None
             foto_file = request.files.get(f'item_{p_id}_foto')
             
-            # --- UPLOAD FOTO EVIDENCIA CLOUDINARY ---
             if foto_file and allowed_file(foto_file.filename):
                 try:
                     res = cloudinary.uploader.upload(foto_file, folder="checklist")
