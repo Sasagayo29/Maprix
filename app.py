@@ -683,11 +683,15 @@ def submit_checklist():
         equipamento = request.form.get('equipamento')
         operador = request.form.get('operador')
         
+        data_hora_recebida = request.form.get('data_hora_local')
+        
+        if data_hora_recebida:
+            data_final = data_hora_recebida
+        else:
+            data_final = datetime.now().isoformat()
+        
         conn = get_db_connection()
         cur = conn.cursor()
-        data_recebida = request.form.get('data_hora') 
-        data_final = data_recebida if data_recebida else datetime.now().isoformat()
-
         cur.execute(
             'INSERT INTO checklist_realizados (equipamento, operador, data_hora) VALUES (%s, %s, %s) RETURNING id',
             (equipamento, operador, data_final)
