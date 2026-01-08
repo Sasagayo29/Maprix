@@ -135,14 +135,18 @@
                 </div>
                 <div class="divider"></div>
                 <div class="section-box" style="border: 1px solid var(--gold); padding: 10px; border-radius: 6px; background: #fffdf5;">
-                    <label class="section-label" style="color: #b38600;"><i class="fas fa-database"></i> Backup .db</label>
-                    <button class="btn-primary" onclick="backupBanco()"><i class="fas fa-save"></i> Fazer Backup</button>
-                    <div style="height:5px;"></div>
-                    <button class="btn-secondary btn-full" onclick="document.getElementById('dbInput').click()" style="border-color:var(--danger); color:var(--danger);">
-                        <i class="fas fa-history"></i> Restaurar Banco
-                    </button>
-                    <input type="file" id="dbInput" accept=".db" style="display:none" onchange="restaurarBanco()">
-                </div>
+    <label class="section-label" style="color: #b38600;"><i class="fas fa-database"></i> Backup Dados (JSON)</label>
+    
+    <button class="btn-primary" onclick="backupDados()"><i class="fas fa-save"></i> Baixar JSON</button>
+    
+    <div style="height:5px;"></div>
+    
+    <button class="btn-secondary btn-full" onclick="document.getElementById('jsonInput').click()" style="border-color:var(--danger); color:var(--danger);">
+        <i class="fas fa-history"></i> Restaurar JSON
+    </button>
+    
+    <input type="file" id="jsonInput" accept=".json" style="display:none" onchange="restaurarDados()">
+</div>
             </div>
 
             <div id="content-checklist" class="panel-content" style="display: none;">

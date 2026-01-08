@@ -99,6 +99,116 @@ def calcular_status_bateria(data_fab_str):
         return "Erro Data", "cinza"
 
 # ==========================================
+# IMPORTAÇÃO, EXPORTAÇÃO E BACKUP (JSON)
+# ==========================================
+
+@app.route('/api/backup_dados')
+def backup_dados():
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        dados = {}
+        
+        # 1. Backup de Tipos
+        cur.execute("SELECT * FROM tipos_equipamento")
+        dados['tipos'] = [dict(row) for row in cur.fetchall()]
+        
+        # 2. Backup de Ativos
+        cur.execute("SELECT * FROM equipamentos_cadastrados")
+        dados['ativos'] = [dict(row) for row in cur.fetchall()]
+        
+        # 3. Backup de Registros (Pontos)
+        cur.execute("SELECT * FROM registros")
+        dados['registros'] = [dict(row) for row in cur.fetchall()]
+        
+        # 4. Backup de Áreas
+        cur.execute("SELECT * FROM areas")
+        dados['areas'] = [dict(row) for row in cur.fetchall()]
+        
+        cur.close()
+        conn.close()
+        
+        # Cria o arquivo JSON na memória
+        str_io = io.BytesIO()
+        str_io.write(json.dumps(dados, indent=4, default=str).encode('utf-8'))
+        str_io.seek(0)
+        
+        return send_file(
+            str_io, 
+            mimetype='application/json',
+            as_attachment=True, 
+            download_name=f"Backup_Maprix_{datetime.now().strftime('%Y%m%d_%H%M')}.json"
+        )
+    except Exception as e:
+        return jsonify({"erro": str(e)}), 500
+
+@app.route('/api/restaurar_dados', methods=['POST'])
+def restaurar_dados():
+    if 'file' not in request.files: return jsonify({"erro": "Sem arquivo"}), 400
+    file = request.files['file']
+    
+    try:
+        dados = json.load(file)
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # ATENÇÃO: Isso vai tentar inserir os dados. 
+        # Idealmente, limparíamos as tabelas antes ou usaríamos 'ON CONFLICT DO NOTHING'
+        # Aqui faremos uma restauração "inteligente" (tenta inserir, se der erro de ID duplicado, ignora)
+        
+        # 1. Restaurar Tipos
+        if 'tipos' in dados:
+            for t in dados['tipos']:
+                cur.execute("INSERT INTO tipos_equipamento (id, nome, icone) VALUES (%s, %s, %s) ON CONFLICT (id) DO NOTHING", 
+                            (t['id'], t['nome'], t['icone']))
+        
+        # 2. Restaurar Ativos
+        if 'ativos' in dados:
+            for a in dados['ativos']:
+                cur.execute("INSERT INTO equipamentos_cadastrados (id, nome, tipo_id, cor_padrao, bateria_fabricacao) VALUES (%s, %s, %s, %s, %s) ON CONFLICT (id) DO NOTHING",
+                            (a['id'], a['nome'], a['tipo_id'], a['cor_padrao'], a['bateria_fabricacao']))
+                
+        # 3. Restaurar Registros
+        if 'registros' in dados:
+            for r in dados['registros']:
+                cur.execute("INSERT INTO registros (id, equipamento, latitude, longitude, data_hora, sincronizado_em, observacao, cor) VALUES (%s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT (id) DO NOTHING",
+                            (r['id'], r['equipamento'], r['latitude'], r['longitude'], r['data_hora'], r['sincronizado_em'], r['observacao'], r['cor']))
+
+        # 4. Restaurar Áreas
+        if 'areas' in dados:
+            for ar in dados['areas']:
+                cur.execute("INSERT INTO areas (id, nome, geometria, cor) VALUES (%s, %s, %s, %s) ON CONFLICT (id) DO NOTHING",
+                            (ar['id'], ar['nome'], ar['geometria'], ar['cor']))
+
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        # Ajustar a sequência dos IDs (Auto Increment) para não dar erro no próximo insert manual
+        # Isso é específico do Postgres
+        reset_sequences()
+        
+        return jsonify({"status": "sucesso", "mensagem": "Dados restaurados/sincronizados!"}), 200
+    except Exception as e:
+        print(e)
+        return jsonify({"erro": str(e)}), 500
+
+def reset_sequences():
+    # Função auxiliar para corrigir o contador do ID serial do Postgres
+    conn = get_db_connection()
+    cur = conn.cursor()
+    tabelas = ['registros', 'areas', 'equipamentos_cadastrados', 'tipos_equipamento', 'checklist_realizados', 'checklist_itens']
+    for tab in tabelas:
+        try:
+            cur.execute(f"SELECT setval(pg_get_serial_sequence('{tab}', 'id'), coalesce(max(id),0) + 1, false) FROM {tab};")
+        except:
+            pass
+    conn.commit()
+    cur.close()
+    conn.close()
+
+# ==========================================
 # ROTAS DE TELA
 # ==========================================
 @app.route('/operador')

@@ -1016,16 +1016,33 @@ function deletarRegiao() {
     if(v) showConfirm("Apagar visão?", () => fetch(`/api/regioes/${JSON.parse(v).id}`, {method:'DELETE'}).then(()=>{ carregarRegioes(); showToast("Apagado", "success"); }));
 }
 
-function backupBanco() { window.location.href = '/api/backup_db'; showToast("Download iniciado...", "info"); }
-function restaurarBanco() {
-    const f = document.getElementById('dbInput').files[0];
-    if(f) showConfirm("Substituir todo o banco?", () => {
-        const fd = new FormData(); fd.append('file', f);
-        fetch('/api/restore_db', {method:'POST', body:fd}).then(r=>r.json()).then(d=>{
-            if(d.status==='sucesso') { alert("Restaurado! Recarregando..."); location.reload(); }
-            else showToast(d.erro, "error");
+function backupDados() { 
+    window.location.href = '/api/backup_dados'; 
+    showToast("Gerando arquivo JSON...", "info"); 
+}
+
+function restaurarDados() {
+    const f = document.getElementById('jsonInput').files[0];
+    if(f) {
+        showConfirm("Isso vai mesclar os dados do arquivo com o banco atual. Continuar?", () => {
+            const fd = new FormData(); 
+            fd.append('file', f);
+            
+            showToast("Restaurando...", "info");
+            
+            fetch('/api/restaurar_dados', {method:'POST', body:fd})
+            .then(r => r.json())
+            .then(d => {
+                if(d.status === 'sucesso') { 
+                    alert("Dados importados com sucesso!"); 
+                    location.reload(); 
+                } else { 
+                    showToast(d.erro, "error"); 
+                }
+            })
+            .catch(err => showToast("Erro no envio.", "error"));
         });
-    });
+    }
 }
 function exportarCSV() {
     if(dadosGlobais.length===0) return showToast("Sem dados", "error");
