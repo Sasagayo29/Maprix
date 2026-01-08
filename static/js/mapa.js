@@ -1,5 +1,5 @@
 /**
- * MAPRIX ENTERPRISE - Frontend Logic v6.0
+ * MAPRIX ENTERPRISE - Frontend Logic v7.0 (Cloudinary Edition)
  * Inclui: Edição Polígonos, Toasts, CRUD Tipos/Ativos, Bateria e Monitoramento Checklist.
  */
 
@@ -13,13 +13,23 @@ L.Polyline.prototype._flat = L.LineUtil.isFlat || L.Polyline.prototype._flat;
 // 1. VARIÁVEIS GLOBAIS E CACHES
 // =========================================================
 let dadosGlobais = [];
-let cacheTipos = {};  // ID do Tipo -> URL da Imagem
+let cacheTipos = {};  // ID do Tipo -> URL da Imagem (Local ou Cloudinary)
 let cacheAtivos = {}; // Nome do Equipamento -> ID do Tipo
 let lastChecklistId = 0; // Controle de notificação
 
 // =========================================================
-// 2. UTILITÁRIOS DE UI (TOASTS & MODAIS)
+// 2. UTILITÁRIOS (UI & URLS)
 // =========================================================
+
+// --- NOVA FUNÇÃO: Resolve se a imagem é local ou do Cloudinary ---
+function resolverUrlImagem(caminho) {
+    if (!caminho) return "";
+    // Se começar com http ou https, é Cloudinary/Externo. Se não, é local (/static)
+    if (caminho.startsWith('http') || caminho.startsWith('//')) {
+        return caminho;
+    }
+    return `/static/${caminho}`;
+}
 
 function showToast(msg, type = 'info') {
     const container = document.getElementById('toastContainer');
@@ -166,8 +176,8 @@ async function carregarTudo() {
         
         carregarRegioes();
         carregarAreas();
-        carregarConfigBateria(); // Novo
-        iniciarMonitoramentoChecklists(); // Novo
+        carregarConfigBateria();
+        iniciarMonitoramentoChecklists();
         
         // Await garante que ícones existam antes de desenhar o mapa
         await carregarTipos();
@@ -207,11 +217,16 @@ function carregarTipos() {
         cacheTipos = {};
 
         lista.forEach(t => {
-            if(t.icone) cacheTipos[t.id] = `/static/${t.icone}`;
+            // CORREÇÃO: Usa o resolvedor de URL
+            if(t.icone) {
+                cacheTipos[t.id] = resolverUrlImagem(t.icone);
+            }
 
             if(ul) {
+                // CORREÇÃO: Usa o resolvedor de URL no HTML
+                const urlImg = resolverUrlImagem(t.icone);
                 const imgHtml = t.icone 
-                    ? `<img src="/static/${t.icone}" style="width:24px; height:24px; object-fit:contain; margin-right:8px; background:#fff; border-radius:4px; padding:2px; border:1px solid #ddd;">` 
+                    ? `<img src="${urlImg}" style="width:24px; height:24px; object-fit:contain; margin-right:8px; background:#fff; border-radius:4px; padding:2px; border:1px solid #ddd;">` 
                     : '<i class="fas fa-cube" style="margin-right:8px; color:#ccc;"></i>';
 
                 ul.innerHTML += `
@@ -242,6 +257,9 @@ function criarTipo() {
     formData.append('nome', nome);
     if(file) formData.append('file', file);
 
+    // Aviso de upload (já que pode demorar um pouquinho no Cloudinary)
+    if(file) showToast("Enviando ícone...", "info");
+
     fetch('/api/tipos', { method: 'POST', body: formData })
     .then(r => r.json()).then(d => {
         if(d.status === 'sucesso') {
@@ -249,7 +267,7 @@ function criarTipo() {
             document.getElementById('novoIcone').value = "";
             document.getElementById('previewContainer').style.display = 'none';
             carregarTipos().then(() => carregarAtivos().then(() => aplicarFiltro()));
-            showToast("Tipo criado!", "success");
+            showToast("Tipo criado com sucesso!", "success");
         } else { showToast(d.erro, "error"); }
     });
 }
@@ -296,21 +314,20 @@ function carregarAtivos() {
 
             if(ul) {
                 let iconeDisplay = `<span style="color:${a.cor_padrao}; font-size:18px; margin-right:5px;">●</span>`;
+                
+                // O cacheTipos já contém a URL resolvida (http ou /static)
                 if(a.tipo_id && cacheTipos[a.tipo_id]) {
                     iconeDisplay = `<img src="${cacheTipos[a.tipo_id]}" style="width:24px; height:24px; object-fit:contain; margin-right:5px;">`;
                 }
                 
-                // Status da Bateria na lista (Corrigido)
+                // Status da Bateria
                 let batStatus = "";
                 if(a.status_bateria) {
-                    // Mapeia a cor vinda do backend para a classe CSS
-                    let corClass = 'cinza'; // Padrão seguro
-                    
+                    let corClass = 'cinza';
                     if (a.cor_bateria === 'vermelho') corClass = 'vermelho';
                     else if (a.cor_bateria === 'laranja') corClass = 'laranja';
                     else if (a.cor_bateria === 'verde') corClass = 'verde';
                     
-                    // Renderiza o badge
                     batStatus = `<span class="badge-bateria ${corClass}" style="margin-left:5px;">${a.status_bateria}</span>`;
                 }
 
@@ -361,9 +378,9 @@ function deletarAtivo(id) {
 
 function criarIcone(nomeEquipamento, cor) {
     const tipoId = cacheAtivos[nomeEquipamento];
-    const nomeHtml = `<span class="marker-label">${nomeEquipamento}</span>`; // Nome em baixo
+    const nomeHtml = `<span class="marker-label">${nomeEquipamento}</span>`;
 
-    // CASO 1: Ícone de Imagem
+    // CASO 1: Ícone de Imagem (Cache já tem URL resolvida)
     if (tipoId && cacheTipos[tipoId]) {
         return L.divIcon({
             className: 'marker-container',
@@ -484,7 +501,6 @@ function aplicarFiltro() {
 function desenharTrajeto(dados) {
     dados.sort((a,b) => new Date(a.data_hora) - new Date(b.data_hora));
     
-    // Filtro para evitar erro _flat
     const latlngs = dados
         .filter(d => d.latitude != null && d.longitude != null && !isNaN(d.latitude))
         .map(d => [d.latitude, d.longitude]);
@@ -498,11 +514,8 @@ function desenharTrajeto(dados) {
 }
 
 function focarTrajeto() {
-    // Verifica se existe alguma linha desenhada na camada de trajetos
     if (layerTrajeto.getLayers().length > 0) {
-        // Cria um grupo temporário para calcular os limites (bounds) de todas as linhas
         const group = new L.FeatureGroup(layerTrajeto.getLayers());
-        // Ajusta o zoom do mapa para caber tudo com uma margem de 50px
         map.fitBounds(group.getBounds(), { padding: [50, 50] });
     } else {
         showToast("Nenhum trajeto visível para focar.", "info");
@@ -522,33 +535,26 @@ function deletarPonto(id) {
 // 8. EDIÇÃO E MODAIS
 // =========================================================
 
-// Função atualizada para receber a data da bateria (parametro extra no final)
 function abrirModalEdicao(id, nome, cor, obs, contexto, dataBateria = "") {
     document.getElementById('editId').value = id;
     document.getElementById('editContexto').value = contexto;
     document.getElementById('editNome').value = nome;
     
-    // Configurações de Cor
     const colorInput = document.getElementById('editCor');
     const colorPreview = document.querySelector('.color-preview');
     colorInput.value = cor || '#007bff';
     if(colorPreview) colorPreview.style.backgroundColor = cor || '#007bff';
 
-    // Controle de Exibição (O que mostrar para Ativo vs Registro)
     const divBateria = document.getElementById('divDetalheBateria');
     const divObs = document.getElementById('divObsEdicao');
     const inputBateria = document.getElementById('editBateriaFab');
 
     if (contexto === 'ativo') {
-        // MODO EDIÇÃO DE FROTA
         divBateria.style.display = 'block';
         divObs.style.display = 'none';
-        
-        // Preenche Data Fabricação
         inputBateria.value = dataBateria;
-        calcularPrevisaoTroca(); // Chama o cálculo visual
+        calcularPrevisaoTroca();
     } else {
-        // MODO EDIÇÃO DE PONTO NO MAPA
         divBateria.style.display = 'none';
         divObs.style.display = 'flex';
         document.getElementById('editObs').value = obs || '';
@@ -557,7 +563,6 @@ function abrirModalEdicao(id, nome, cor, obs, contexto, dataBateria = "") {
     document.getElementById('modalEdicao').style.display = 'flex';
 }
 
-// LÓGICA DE CÁLCULO DE VENCIMENTO (FRONTEND)
 function calcularPrevisaoTroca() {
     const dataFab = document.getElementById('editBateriaFab').value;
     const elVenc = document.getElementById('viewBateriaVenc');
@@ -573,29 +578,22 @@ function calcularPrevisaoTroca() {
         return;
     }
 
-    // Cálculos
-    const inicio = new Date(dataFab + "-01"); // Força dia 01
+    const inicio = new Date(dataFab + "-01");
     const hoje = new Date();
-    
-    // Limite Padrão: 54 meses (Critico)
     const limiteMeses = 54; 
     
-    // Calcula Vencimento
     const vencimento = new Date(inicio);
     vencimento.setMonth(vencimento.getMonth() + limiteMeses);
     
-    // Formata Data Vencimento (MM/AAAA)
     const mm = String(vencimento.getMonth() + 1).padStart(2, '0');
     const yyyy = vencimento.getFullYear();
     elVenc.value = `${mm}/${yyyy}`;
 
-    // Calcula Meses de Uso
     let mesesUso = (hoje.getFullYear() - inicio.getFullYear()) * 12 + (hoje.getMonth() - inicio.getMonth());
     if (mesesUso < 0) mesesUso = 0;
 
     elMeses.innerText = `${mesesUso} meses de uso`;
 
-    // Barra de Progresso e Cores
     let porcentagem = (mesesUso / limiteMeses) * 100;
     if(porcentagem > 100) porcentagem = 100;
     
@@ -607,7 +605,7 @@ function calcularPrevisaoTroca() {
         elProg.style.background = "var(--danger)";
     } else if (mesesUso >= 48) {
         elStatus.innerText = "Status: ATENÇÃO (Troca Próxima)";
-        elStatus.style.color = "#fd7e14"; // Laranja
+        elStatus.style.color = "#fd7e14"; 
         elProg.style.background = "#fd7e14";
     } else {
         elStatus.innerText = "Status: SAUDÁVEL";
@@ -641,16 +639,15 @@ function salvarEdicao() {
         });
     } 
     else if (contexto === 'ativo') {
-        // NOVO: SALVAR EDIÇÃO DO CADASTRO MESTRE (NOME, COR, BATERIA)
         const dataBat = document.getElementById('editBateriaFab').value;
         
-        fetch(`/api/ativos_update/${id}`, { // Note a nova rota sugerida
+        fetch(`/api/ativos_update/${id}`, {
             method: 'PUT', headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ nome: nome, cor: cor, bateria_fabricacao: dataBat })
         }).then(r => r.json()).then(d => {
             if(d.status === 'sucesso') {
                 fecharModal('modalEdicao'); 
-                carregarAtivos(); // Recarrega a lista lateral
+                carregarAtivos();
                 showToast("Equipamento atualizado!", "success");
             } else {
                 showToast("Erro: " + d.erro, "error");
@@ -670,7 +667,6 @@ function iniciarMonitoramentoChecklists() {
             if(d.qtd > 0) {
                 lastChecklistId = d.max_id;
                 showToast(`🔔 ${d.qtd} Novo(s) Checklist(s)!`, "info");
-                // Atualiza lista se a aba estiver aberta
                 if(document.getElementById('content-checklist') && document.getElementById('content-checklist').style.display === 'block') {
                     carregarChecklistsAdmin();
                 }
@@ -683,7 +679,6 @@ function iniciarMonitoramentoChecklists() {
 // MÓDULO CHECKLIST: VISUALIZAÇÃO E FILTRO
 // =========================================================
 
-// ATUALIZAÇÃO: Carregar Checklists com Botões de Ação
 function carregarChecklistsAdmin() {
     const div = document.getElementById('listaChecklistsAdmin');
     div.innerHTML = '<div style="text-align:center; padding:20px; color:#999"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>';
@@ -703,54 +698,44 @@ function carregarChecklistsAdmin() {
             let temReprovado = false;
 
             c.itens.forEach(i => {
-                // 1. Definições de Status
                 const isOk = i.conforme;
                 const statusClass = isOk ? 'status-badge-mini ok' : 'status-badge-mini nok';
                 const statusText = isOk ? 'CONFORME' : 'ALERTA';
                 
                 if(!isOk) temReprovado = true;
 
-                // 2. Indicador visual se tem observação (Texto pequeno abaixo da pergunta)
                 let obsIndicator = "";
-                // Escapamos aspas para passar no onclick
                 const obsSafe = i.observacao ? i.observacao.replace(/"/g, '&quot;').replace(/'/g, "&#39;") : "";
                 
                 if (i.observacao) {
                     obsIndicator = `<div class="chk-has-obs-indicator"><i class="fas fa-comment-dots"></i> Ver observação</div>`;
                 }
 
-                // 3. Botão de Foto (Se existir)
+                // CORREÇÃO: Resolve a URL da foto (Cloudinary ou Local)
                 let btnFoto = "";
                 if (i.foto_path) {
-                    const urlFoto = `/static/${i.foto_path}`;
+                    const urlFoto = resolverUrlImagem(i.foto_path);
                     const perguntaSafe = i.pergunta.replace(/"/g, "&quot;");
                     
-                    // IMPORTANTE: event.stopPropagation() para não abrir o modal de texto ao clicar na foto
                     btnFoto = `
                         <button class="btn-photo-mini" onclick="event.stopPropagation(); abrirImagemChecklist('${urlFoto}', '${perguntaSafe}')" title="Ver Foto">
                             <i class="fas fa-camera"></i>
                         </button>
                     `;
                 } else {
-                    // Placeholder invisível para manter altura se não tiver foto
                     btnFoto = `<div style="height:30px;"></div>`; 
                 }
 
-                // 4. HTML FINAL (NOVO LAYOUT)
-                // O div principal tem o onclick para abrir a observação
                 itensHtml += `
                     <div class="chk-item-row-new" onclick="verObservacao('${obsSafe}', '${i.pergunta}')">
-                        
                         <div class="chk-left-content">
                             <div class="chk-question-main">${i.pergunta}</div>
                             ${obsIndicator}
                         </div>
-
                         <div class="chk-right-panel">
                             <span class="${statusClass}">${statusText}</span>
                             ${btnFoto}
                         </div>
-
                     </div>`;
             });
 
@@ -761,12 +746,11 @@ function carregarChecklistsAdmin() {
             const statusBadge = temReprovado 
                 ? `<span style="font-size:10px; background:#dc3545; color:white; padding:2px 6px; border-radius:4px; margin-left:5px;">ALERTA</span>` 
                 : `<span style="font-size:10px; background:#28a745; color:white; padding:2px 6px; border-radius:4px; margin-left:5px;">OK</span>`;
-            // Formatação da data para o atributo onclick (iso string)
+            
             const dataIso = c.data_hora; 
 
             const cardHtml = `
                 <div class="chk-card-admin" style="${borderStyle}" data-search="${c.equipamento} ${c.operador} ${c.data_hora}">
-                    
                     <div class="chk-header-clickable" onclick="toggleChecklistDetails(this)">
                         <div style="flex-grow:1;">
                             <div class="chk-title">
@@ -805,32 +789,25 @@ function carregarChecklistsAdmin() {
     });
 }
 
-// --- NOVA FUNÇÃO PARA ABRIR O POPUP DE OBSERVAÇÃO ---
 function verObservacao(texto, titulo) {
     const elTexto = document.getElementById('textoObservacaoFull');
     const modal = document.getElementById('modalObsViewer');
     
     if (!texto) {
-        // Se não tiver observação, mostra um aviso rápido (Toast) em vez de abrir modal vazio
         showToast("Nenhuma observação registrada para este item.", "info");
         return;
     }
 
-    // Preenche o modal
-    // Adiciona o título da pergunta em negrito antes
     elTexto.innerHTML = `<strong>Item:</strong> ${titulo}<br><br><strong>Observação:</strong><br>${texto}`;
-    
     modal.style.display = 'flex';
 }
-
-// === FUNÇÕES NOVAS DE AÇÃO ===
 
 function deletarChecklist(id) {
     showConfirm("ATENÇÃO: Isso apagará este registro e todas as respostas. Continuar?", () => {
         fetch(`/api/checklist/${id}`, { method: 'DELETE' })
             .then(() => {
                 showToast("Registro apagado.", "success");
-                carregarChecklistsAdmin(); // Recarrega a lista
+                carregarChecklistsAdmin();
             })
             .catch(() => showToast("Erro ao apagar.", "error"));
     });
@@ -841,10 +818,7 @@ function abrirEditarChecklist(id, equip, oper, dataHora) {
     document.getElementById('editChkEquip').value = equip;
     document.getElementById('editChkOper').value = oper;
     
-    // Converte data ISO para formato do input datetime-local (YYYY-MM-DDTHH:MM)
-    // Pequeno hack para formatar rápido
     const dateObj = new Date(dataHora);
-    // Ajuste de fuso horário simples para o input locale
     dateObj.setMinutes(dateObj.getMinutes() - dateObj.getTimezoneOffset());
     document.getElementById('editChkData').value = dateObj.toISOString().slice(0,16);
 
@@ -865,7 +839,7 @@ function salvarEdicaoChecklist() {
         body: JSON.stringify({
             equipamento: equip,
             operador: oper,
-            data_hora: dataVal // O backend receberá ISO string
+            data_hora: dataVal
         })
     }).then(() => {
         fecharModal('modalEditChecklist');
@@ -874,22 +848,17 @@ function salvarEdicaoChecklist() {
     });
 }
 
-// Função para Abrir/Fechar Accordion
 function toggleChecklistDetails(headerElement) {
     const card = headerElement.parentElement;
     card.classList.toggle('open');
 }
 
-// Função de Busca Inteligente
 function filtrarChecklists() {
     const termo = document.getElementById('buscaChecklist').value.toLowerCase();
     const cards = document.querySelectorAll('.chk-card-admin');
     
     cards.forEach(card => {
-        // Pegamos o texto que guardamos no atributo data-search
-        // Isso inclui nome do equipamento, operador e data
         const dados = card.getAttribute('data-search').toLowerCase();
-        
         if (dados.includes(termo)) {
             card.style.display = "block";
         } else {
@@ -954,7 +923,6 @@ function carregarAreas() {
                 l.maprixId = a.id;
                 l.maprixNome = a.nome;
                 
-                // HTML DO POPUP COM BOTÃO DE COR
                 l.bindPopup(`
                     <div class="popup-header">
                         <span><i class="fas fa-vector-square" style="margin-right:8px"></i> ${a.nome}</span>
@@ -983,26 +951,20 @@ function carregarAreas() {
     });
 }
 
-// --- FUNÇÃO MÁGICA PARA TROCAR COR ---
 function acionarTrocaCor(id, corAtual) {
     const input = document.getElementById('auxColorPicker');
-    
-    // Define a cor atual no picker
     input.value = corAtual;
     
-    // Quando o usuário escolhe a cor e fecha a paleta
     input.onchange = function() {
         const novaCor = input.value;
-        
-        // Salva no Backend
         fetch(`/api/area/${id}`, {
             method: 'PUT',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ cor: novaCor })
         }).then(r => {
             if(r.ok) {
-                map.closePopup(); // Fecha o popup
-                carregarAreas();  // Recarrega o mapa para pintar com a nova cor
+                map.closePopup();
+                carregarAreas();
                 showToast("Cor atualizada!", "success");
             } else {
                 showToast("Erro ao salvar cor.", "error");
@@ -1010,7 +972,6 @@ function acionarTrocaCor(id, corAtual) {
         });
     };
     
-    // Simula o clique para abrir a paleta do sistema
     input.click();
 }
 
@@ -1100,7 +1061,7 @@ function togglePanel(tab) {
         'cadastro': 'Gestão de Cadastros', 
         'dados': 'Dados e Configurações',
         'ajuda': 'Ajuda',
-        'checklist': 'Respostas Checklists' // Nova aba
+        'checklist': 'Respostas Checklists' 
     };
     const tEl = document.getElementById('panelTitle');
     if(tEl) tEl.innerText = titles[tab] || 'Painel';
