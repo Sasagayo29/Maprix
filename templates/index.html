@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maprix Enterprise - Gestor</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+    <header class="main-header">
+        <div class="logo-area">
+            <img src="https://tamandua.tv.br/assets/img/logo_kinross.png" alt="Logo" class="logo-img"> 
+            <div class="vertical-divider"></div>
+            <span class="system-name">MAPRIX <span>MANAGER</span></span>
+        </div>
+        <div class="user-info">
+            <span class="badge-user"><i class="fas fa-user-shield"></i> Administrador</span>
+        </div>
+    </header>
+
+    <div class="main-container">
+        
+        <aside class="sidebar-menu">
+            <div class="menu-group top">
+                <button class="menu-btn active" onclick="togglePanel('filtro')" data-tooltip="Mapa e Filtros"><i class="fas fa-map"></i></button>
+                <button class="menu-btn" onclick="togglePanel('cadastro')" data-tooltip="Gestão de Ativos"><i class="fas fa-boxes"></i></button>
+                <button class="menu-btn" onclick="togglePanel('dados')" data-tooltip="Dados e Bateria"><i class="fas fa-database"></i></button>
+                <button class="menu-btn" onclick="togglePanel('checklist')" data-tooltip="Respostas Checklist"><i class="fas fa-clipboard-check"></i></button>
+                <button class="menu-btn" onclick="togglePanel('ajuda')" data-tooltip="Ajuda"><i class="fas fa-question-circle"></i></button>
+                <button class="menu-btn" onclick="carregarTudo()" data-tooltip="Atualizar"><i class="fas fa-sync spin"></i></button>
+            </div>
+            <div class="menu-group bottom">
+                <button class="menu-btn logout-btn" onclick="location.reload()" data-tooltip="Sair"><i class="fas fa-power-off"></i></button>
+            </div>
+        </aside>
+
+        <div id="sidePanel" class="side-panel">
+            <div class="panel-header">
+                <h3 id="panelTitle">Painel</h3>
+                <button class="close-panel" onclick="fecharPanel()"><i class="fas fa-times"></i></button>
+            </div>
+
+            <div id="content-filtro" class="panel-content">
+                <div class="stats-container">
+                    <div class="stat-card"><strong id="statTotal">0</strong><span>Ativos</span></div>
+                    <div class="stat-card"><strong id="statRegistros">0</strong><span>Pontos</span></div>
+                </div>
+                <div class="divider"></div>
+                
+                <div class="section-box">
+                    <label class="section-label">Visão do Mapa</label>
+                    <div class="input-group">
+                        <select id="selectRegiao" class="styled-select" onchange="irParaRegiao()"><option value="">Carregando...</option></select>
+                        <button class="btn-icon-bg danger" onclick="deletarRegiao()"><i class="fas fa-trash"></i></button>
+                    </div>
+                    <button class="btn-secondary btn-full" onclick="salvarRegiaoAtual()"><i class="fas fa-plus"></i> Salvar Visão</button>
+                </div>
+                
+                <div class="divider"></div>
+                
+                <div class="section-box">
+                    <label class="section-label">Rastreamento</label>
+                    <select id="filtroEquipamento" class="styled-select" onchange="aplicarFiltro()">
+                        <option value="todos">-- Todos os Equipamentos --</option>
+                    </select>
+                    
+                    <div id="infoTimeline" class="info-box fadeIn" style="display: none;">
+                        <strong><i class="fas fa-route"></i> Rastreando:</strong> <span id="nomeTrajeto" class="highlight">--</span><br>
+                        <small><span id="qtdPontos">0</span> posições históricas.</small>
+                        <button class="btn-sm btn-gold" onclick="focarTrajeto()">Focar Rota</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="content-cadastro" class="panel-content" style="display: none;">
+                <div class="section-box" style="background:#f9f9f9; padding:10px; border-radius:8px; border:1px solid #eee;">
+                    <label class="section-label"><i class="fas fa-tags"></i> Gerenciar Tipos</label>
+                    <div style="display: flex; gap: 5px; flex-direction: column;">
+                        <input type="text" id="novoTipo" class="styled-input" placeholder="Nome (Ex: Caminhão)">
+                        <div class="input-group">
+                            <label for="novoIcone" class="btn-secondary" style="flex-grow:1; cursor:pointer; text-align:center; font-size:12px;">
+                                <i class="fas fa-image"></i> Escolher Ícone
+                            </label>
+                            <input type="file" id="novoIcone" accept="image/*" style="display:none" onchange="previewIcone()">
+                            <button class="btn-primary" style="width:auto; margin:0;" onclick="criarTipo()"><i class="fas fa-plus"></i></button>
+                        </div>
+                        <div id="previewContainer" style="display:none; text-align:center; margin-bottom:5px;">
+                            <img id="imgPreview" src="" style="width:30px; height:30px; object-fit:contain;">
+                            <small style="display:block; font-size:10px; color:#666;">Preview</small>
+                        </div>
+                    </div>
+                    <ul id="listaTipos" class="lista-ativos" style="max-height:150px; overflow-y:auto; margin-top:10px;"></ul>
+                </div>
+
+                <div class="divider"></div>
+                
+                <label class="section-label"><i class="fas fa-truck-pickup"></i> Novo Ativo</label>
+                <div class="form-stack">
+                    <input type="text" id="cadNome" class="styled-input" placeholder="Identificação (Ex: CAM-05)">
+                    <select id="cadTipo" class="styled-select" style="margin-top:5px;"><option value="">-- Selecione o Tipo --</option></select>
+                    <div class="color-picker-row">
+                        <input type="color" id="cadCor" class="styled-color" value="#007bff"><span>Cor (Padrão)</span>
+                    </div>
+                    <button class="btn-primary" onclick="cadastrarAtivo()">Cadastrar Ativo</button>
+                </div>
+                
+                <div class="divider"></div>
+                <h4>Lista de Frota</h4>
+                <ul id="listaAtivos" class="lista-ativos"></ul>
+            </div>
+
+            <div id="content-dados" class="panel-content" style="display: none;">
+                <div class="section-box">
+                    <label class="section-label"><i class="fas fa-file-csv"></i> CSV</label>
+                    <div class="action-grid">
+                        <button class="btn-secondary-down" onclick="exportarCSV()"><i class="fas fa-download"></i> Baixar</button>
+                        <button class="btn-secondary-up" onclick="document.getElementById('fileInput').click()"><i class="fas fa-upload"></i> Subir</button>
+                        <input type="file" id="fileInput" accept=".csv" style="display:none" onchange="importarCSV()">
+                    </div>
+                </div>
+                <div class="divider"></div>
+                <div class="section-box">
+                    <label class="section-label"><i class="fas fa-battery-full"></i> Alertas de Bateria (Meses)</label>
+                    <div class="input-group">
+                        <input type="number" id="confBatAviso" class="styled-input" placeholder="Aviso (48)">
+                        <input type="number" id="confBatCritico" class="styled-input" placeholder="Crítico (54)">
+                        <button class="btn-primary" style="width:auto; margin:0;" onclick="salvarConfigBateria()">Salvar</button>
+                    </div>
+                </div>
+                <div class="divider"></div>
+                <div class="section-box" style="border: 1px solid var(--gold); padding: 10px; border-radius: 6px; background: #fffdf5;">
+                    <label class="section-label" style="color: #b38600;"><i class="fas fa-database"></i> Backup .db</label>
+                    <button class="btn-primary" onclick="backupBanco()"><i class="fas fa-save"></i> Fazer Backup</button>
+                    <div style="height:5px;"></div>
+                    <button class="btn-secondary btn-full" onclick="document.getElementById('dbInput').click()" style="border-color:var(--danger); color:var(--danger);">
+                        <i class="fas fa-history"></i> Restaurar Banco
+                    </button>
+                    <input type="file" id="dbInput" accept=".db" style="display:none" onchange="restaurarBanco()">
+                </div>
+            </div>
+
+            <div id="content-checklist" class="panel-content" style="display: none;">
+                <div class="section-box" style="position: sticky; top: 0; background: #fff; z-index: 10; padding-bottom: 10px; border-bottom: 1px solid #eee;">
+                    <label class="section-label">Monitoramento de Entregas</label>
+                    <div class="input-group" style="margin-bottom: 5px;">
+                        <input type="text" id="buscaChecklist" class="styled-input" placeholder="Buscar..." oninput="filtrarChecklists()">
+                        <button class="btn-secondary" onclick="carregarChecklistsAdmin()" title="Atualizar"><i class="fas fa-sync-alt"></i></button>
+                    </div>
+                </div>
+                <div id="listaChecklistsAdmin" class="checklist-scroll-area"></div>
+            </div>
+
+            <div id="content-ajuda" class="panel-content" style="display: none;">
+                <div class="help-card"><h5><i class="fas fa-mouse-pointer"></i> Navegação</h5><p>Scroll para zoom, clique e arraste para mover.</p></div>
+                <div class="help-card"><h5><i class="fas fa-draw-polygon"></i> Geofencing</h5><p>Use a barra lateral do mapa para desenhar áreas.</p></div>
+                <div class="help-card"><h5><i class="fas fa-image"></i> Ícones</h5><p>Cadastre imagens personalizadas para os tipos de equipamento.</p></div>
+                <div class="creator-tag">v1.2 Maprix Enterprise</div>
+            </div>
+        </div>
+
+        <div id="map"></div>
+    </div>
+
+    <div id="toastContainer" class="toast-container"></div>
+
+    <div id="modalConfirm" class="modal-overlay" style="display: none; z-index: 5000;">
+        <div class="modal-card bounceIn" style="width: 350px;">
+            <div class="modal-header" style="background: #333; color: white;"><h3>Confirmação</h3></div>
+            <div class="modal-body"><p id="confirmMessage" style="color: #333;">Tem certeza?</p></div>
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="fecharModal('modalConfirm')">Não</button>
+                <button class="btn-save" id="btnConfirmYes" style="background: var(--danger);">Sim</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalPrompt" class="modal-overlay" style="display: none; z-index: 5000;">
+        <div class="modal-card bounceIn" style="width: 350px;">
+            <div class="modal-header"><h3>Entrada</h3></div>
+            <div class="modal-body">
+                <p id="promptMessage">Digite:</p>
+                <input type="text" id="promptInput" class="styled-input" autocomplete="off">
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="fecharModal('modalPrompt')">Cancelar</button>
+                <button class="btn-save" id="btnPromptOk">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalEdicao" class="modal-overlay" style="display: none;">
+        <div class="modal-card bounceIn">
+            <div class="modal-header">
+                <h3><i class="fas fa-sliders-h"></i> Detalhes</h3>
+                <button onclick="fecharModal('modalEdicao')" class="close-modal-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+    <input type="hidden" id="editId">
+    <input type="hidden" id="editContexto"> <div class="form-group">
+        <label><i class="fas fa-tag"></i> Nome / Equipamento</label>
+        <input type="text" id="editNome" class="styled-input">
+    </div>
+
+    <div id="divDetalheBateria" style="display:none; background:#f8f9fa; padding:15px; border-radius:8px; border:1px solid #eee; margin-top:10px;">
+        <label style="color:#555; font-size:12px; font-weight:bold; margin-bottom:10px; display:block;">
+            <i class="fas fa-car-battery"></i> GESTÃO DE BATERIA
+        </label>
+        
+        <div class="action-grid">
+            <div class="form-group">
+                <label style="font-size:11px;">Fabricação</label>
+                <input type="month" id="editBateriaFab" class="styled-input" onchange="calcularPrevisaoTroca()">
+            </div>
+            <div class="form-group">
+                <label style="font-size:11px;">Troca Estimada</label>
+                <input type="text" id="viewBateriaVenc" class="styled-input" readonly style="background:#eee; color:#666; cursor:not-allowed;">
+            </div>
+        </div>
+
+        <div style="margin-top:15px;">
+            <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:5px;">
+                <span id="lblStatusBat">Status: --</span>
+                <span id="lblMesesUso">0 meses de uso</span>
+            </div>
+            <div style="height:6px; background:#ddd; border-radius:3px; overflow:hidden;">
+                <div id="progressBateria" style="width:0%; height:100%; background:var(--success); transition:width 0.5s;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="divObsEdicao" class="form-group" style="margin-top:15px;">
+        <label><i class="fas fa-comment-alt"></i> Observação</label>
+        <textarea id="editObs" class="styled-textarea" rows="3"></textarea>
+    </div>
+    
+    <div class="form-group" style="margin-top:15px;">
+        <label><i class="fas fa-palette"></i> Cor de Identificação</label>
+        <div class="color-picker-modern">
+            <div class="color-preview"></div>
+            <span class="color-label">Toque para alterar a cor</span>
+            <input type="color" id="editCor" class="color-input-hidden">
+        </div>
+    </div>
+</div>
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="fecharModal('modalEdicao')">Cancelar</button>
+                <button class="btn-save" onclick="salvarEdicao()"><i class="fas fa-check"></i> Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <input type="color" id="auxColorPicker" style="display: none;">
+
+    <div id="modalArea" class="modal-overlay" style="display: none;">
+        <div class="modal-card bounceIn">
+            <div class="modal-header"><h3>Nova Área</h3></div>
+            <div class="modal-body">
+                <label>Nome:</label><input type="text" id="areaNome" class="styled-input">
+                <label>Cor:</label><input type="color" id="areaCor" value="#FFC107" class="styled-color-large">
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="cancelarDesenho()">Cancelar</button>
+                <button class="btn-save" onclick="confirmarArea()">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalChecklistConfig" class="modal-overlay" style="display: none;">
+        <div class="modal-card bounceIn" style="width: 500px;">
+            <div class="modal-header">
+                <h3 id="tituloChecklistConfig"><i class="fas fa-tasks"></i> Configurar Checklist</h3>
+                <button onclick="fecharModal('modalChecklistConfig')" class="close-modal-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="checklistTipoId">
+                <div class="input-group">
+                    <input type="text" id="novaPergunta" class="styled-input" placeholder="Nova pergunta...">
+                    <button class="btn-primary" style="width:auto; margin:0;" onclick="addPerguntaChecklist()"><i class="fas fa-plus"></i></button>
+                </div>
+                <div class="divider"></div>
+                <p style="font-size:12px; color:#666;">Itens ativos:</p>
+                <ul id="listaPerguntasChecklist" class="lista-ativos" style="max-height: 250px; overflow-y: auto;"></ul>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalObsViewer" class="modal-overlay" style="display: none; z-index: 10002;" onclick="fecharModal('modalObsViewer')">
+    <div class="modal-card bounceIn" style="max-width: 400px;" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3><i class="fas fa-comment-alt"></i> Detalhe da Observação</h3>
+            <button class="close-modal-btn" onclick="fecharModal('modalObsViewer')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <div id="textoObservacaoFull" style="font-size: 15px; color: #333; line-height: 1.6; min-height: 60px;">
+                --
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancel" onclick="fecharModal('modalObsViewer')" style="width:100%">Fechar</button>
+        </div>
+    </div>
+</div>
+
+    <div id="modalImageViewer" class="modal-overlay" style="display: none; z-index: 10000;" onclick="fecharModal('modalImageViewer')">
+        <div class="modal-image-container" onclick="event.stopPropagation()">
+            <button class="close-image-btn" onclick="fecharModal('modalImageViewer')">
+                <i class="fas fa-times"></i>
+            </button>
+            <img id="imgViewerSrc" src="" alt="Evidência do Checklist">
+            <div id="imgViewerCaption" class="image-caption">--</div>
+        </div>
+    </div>
+
+    <div id="modalEditChecklist" class="modal-overlay" style="display: none;">
+        <div class="modal-card bounceIn">
+            <div class="modal-header">
+                <h3><i class="fas fa-edit"></i> Corrigir Registro</h3>
+                <button onclick="fecharModal('modalEditChecklist')" class="close-modal-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editChkId">
+            
+                <div class="form-group">
+                    <label>Equipamento</label>
+                    <input type="text" id="editChkEquip" class="styled-input">
+                </div>
+            
+                <div class="form-group">
+                    <label>Operador</label>
+                    <input type="text" id="editChkOper" class="styled-input">
+                </div>
+
+                <div class="form-group">
+                    <label>Data/Hora Original</label>
+                    <input type="datetime-local" id="editChkData" class="styled-input">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="fecharModal('modalEditChecklist')">Cancelar</button>
+                <button class="btn-save" onclick="salvarEdicaoChecklist()">Salvar Correção</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+    <script src="{{ url_for('static', filename='js/mapa.js') }}"></script>
+</body>
+</html>

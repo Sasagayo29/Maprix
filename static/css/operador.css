@@ -243,7 +243,7 @@ input:checked + .slider:before { transform: translateX(24px); }
 }
 .chk-obs {
     width: 100%; background: transparent; border: none; border-bottom: 1px solid #555;
-    color: #ccc; font-size: 13px; padding: 5px; outline: none;
+    color: #ccc; font-size: 16px; padding: 5px; outline: none;
 }
 .chk-obs:focus { border-bottom-color: var(--gold); }
 
@@ -253,3 +253,195 @@ input:checked + .slider:before { transform: translateX(24px); }
     display: flex; align-items: center; justify-content: center; font-size: 16px;
 }
 .btn-photo-upload.has-file { border-color: var(--gold); color: var(--gold); }
+
+.btn-photo-upload.has-file::after {
+    content: '\f00c'; /* Unicode do FontAwesome 'check' */
+    font-family: "Font Awesome 6 Free"; 
+    font-weight: 900;
+    position: absolute;
+    top: -5px; right: -5px;
+    font-size: 10px;
+    background: var(--bg-dark);
+    border-radius: 50%;
+    padding: 2px;
+}
+.btn-photo-upload { position: relative; } /* Necessário para o absolute acima */
+
+/* Adicione/Ajuste na classe .modal-box ou crie uma específica para o checklist */
+#modalChecklistOp .modal-body {
+    max-height: 70vh; /* Ocupa no máximo 60% da altura da tela */
+    overflow-y: auto; /* Scroll se passar disso */
+    scrollbar-width: thin; /* Firefox */
+    scrollbar-color: var(--gold) var(--bg-card);
+}
+
+/* Estilos do Modal de Bateria */
+.modal-header-center { text-align: center; margin-bottom: 20px; }
+
+.battery-status-card {
+    background: rgba(0,0,0,0.3);
+    padding: 15px;
+    border-radius: 10px;
+    text-align: center;
+    margin-bottom: 20px;
+    font-size: 20px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border: 1px solid #444;
+}
+
+.battery-form { text-align: left; margin-bottom: 20px; }
+.battery-form label { display: block; color: var(--gold); font-size: 14px; margin-bottom: 8px; font-weight: bold; }
+
+.input-dark {
+    width: 100%;
+    background: #2c2c2c;
+    border: 1px solid #555;
+    color: white;
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 16px;
+    outline: none;
+    color-scheme: dark; /* Faz o calendário nativo ficar escuro */
+}
+.input-dark:focus { border-color: var(--gold); }
+
+.hint-text { font-size: 12px; color: #888; margin-top: 5px; }
+
+/* =========================================
+   NOVOS COMPONENTES VISUAIS (TOAST & ALERT)
+   ========================================= */
+
+/* TOAST CONTAINER (No topo, centralizado para mobile) */
+.toast-container {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 11000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 90%;
+    max-width: 400px;
+    pointer-events: none; /* Deixa clicar através se não tiver toast */
+}
+
+.toast {
+    background: rgba(30, 30, 30, 0.95);
+    color: white;
+    padding: 15px 20px;
+    border-radius: 50px; /* Formato pílula */
+    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    border: 1px solid #444;
+    backdrop-filter: blur(5px);
+    animation: slideDownFade 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    pointer-events: auto;
+}
+
+/* Tipos de Toast */
+.toast.success { border-color: var(--success); color: var(--success); }
+.toast.error { border-color: var(--danger); color: var(--danger); }
+.toast.warning { border-color: var(--warning); color: var(--warning); }
+
+.toast i { font-size: 18px; }
+
+/* Animação de Saída */
+.toast.hiding { animation: fadeOutUp 0.4s forwards; }
+
+@keyframes slideDownFade {
+    from { transform: translateY(-30px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+@keyframes fadeOutUp {
+    to { transform: translateY(-30px); opacity: 0; }
+}
+
+/* MODAL ALERT AJUSTES */
+.full-width { width: 100%; margin: 0; }
+
+/* Cores de ícones do modal */
+.modal-icon.warning { color: var(--warning); background: rgba(255, 152, 0, 0.1); }
+.modal-icon.success { color: var(--success); background: rgba(40, 167, 69, 0.1); }
+.modal-icon.error { color: var(--danger); background: rgba(207, 53, 46, 0.1); }
+
+
+
+
+
+
+/* =========================================
+   NOVO DROPDOWN DE EQUIPAMENTOS
+   ========================================= */
+
+/* Wrapper para posicionamento relativo */
+.dropdown-wrapper {
+    position: relative;
+    z-index: 100; /* Fica acima do input de baixo */
+}
+
+/* A Lista Suspensa */
+.custom-dropdown-list {
+    position: absolute;
+    top: 100%; /* Logo abaixo do input */
+    left: 0;
+    width: 100%;
+    background: #252525;
+    border: 1px solid #444;
+    border-top: none;
+    border-radius: 0 0 12px 12px;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    max-height: 200px; /* Altura máxima */
+    overflow-y: auto; /* Scroll se passar da altura */
+    box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+    
+    /* Scrollbar estilizada (igual admin) */
+    scrollbar-width: thin;
+    scrollbar-color: var(--gold) #252525;
+}
+
+/* Itens da Lista */
+.custom-dropdown-list li {
+    padding: 12px 15px;
+    border-bottom: 1px solid #333;
+    color: #eee;
+    cursor: pointer;
+    font-size: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background 0.2s;
+}
+
+.custom-dropdown-list li:last-child { border-bottom: none; }
+
+.custom-dropdown-list li:hover {
+    background: rgba(255, 193, 7, 0.1);
+    color: var(--gold);
+    padding-left: 20px; /* Efeito de slide */
+}
+
+/* Texto secundário (Tipo do equipamento) na lista */
+.type-tag {
+    font-size: 11px;
+    background: #333;
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: #aaa;
+    text-transform: uppercase;
+}
+
+/* Quando a lista está aberta, arredondar apenas em cima do input */
+.dropdown-wrapper input:focus {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}

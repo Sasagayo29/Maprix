@@ -19,6 +19,7 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 CHECKLIST_FOLDER = 'static/uploads/checklist'
 app.config['CHECKLIST_FOLDER'] = CHECKLIST_FOLDER
 os.makedirs(CHECKLIST_FOLDER, exist_ok=True)
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # ==========================================
 # 1. CONFIGURAÇÃO E BANCO DE DADOS
@@ -29,16 +30,13 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
-# Cria a pasta de ícones se não existir
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def init_db():
     conn = get_db_connection()
     
-    # Tabela 1: Histórico de Posições
+    # 1. Histórico de Posições
     conn.execute('''
         CREATE TABLE IF NOT EXISTS registros (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -52,7 +50,7 @@ def init_db():
         )
     ''')
     
-    # Tabela 2: Áreas (Geofencing)
+    # 2. Áreas (Geofencing)
     conn.execute('''
         CREATE TABLE IF NOT EXISTS areas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -62,17 +60,23 @@ def init_db():
         )
     ''')
 
-    # Tabela 3: Cadastro de Ativos (Frota Real)
+    # 3. Cadastro de Ativos (Frota Real)
     conn.execute('''
         CREATE TABLE IF NOT EXISTS equipamentos_cadastrados (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nome TEXT NOT NULL UNIQUE,
             tipo_id INTEGER,
-            cor_padrao TEXT DEFAULT '#007bff'
+            cor_padrao TEXT DEFAULT '#007bff',
+            bateria_fabricacao TEXT  -- NOVO: Data de fabricação (YYYY-MM)
         )
     ''')
+    
+    try:
+        conn.execute('ALTER TABLE equipamentos_cadastrados ADD COLUMN bateria_fabricacao TEXT')
+    except:
+        pass
 
-    # Tabela 4: Regiões Salvas
+    # 4. Regiões Salvas
     conn.execute('''
         CREATE TABLE IF NOT EXISTS regioes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -83,7 +87,7 @@ def init_db():
         )
     ''')
 
-    # Tabela 5: Tipos de Equipamento (NOVO - CRUD DE TIPOS)
+    # 5. Tipos de Equipamento
     conn.execute('''
         CREATE TABLE IF NOT EXISTS tipos_equipamento (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -92,7 +96,7 @@ def init_db():
         )
     ''')
     
-    # 6. Perguntas do Checklist (Vinculado ao Tipo)
+    # 6. Perguntas do Checklist
     conn.execute('''
         CREATE TABLE IF NOT EXISTS checklist_perguntas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -112,20 +116,31 @@ def init_db():
         )
     ''')
 
-    # 8. Detalhes do Checklist (Respostas)
+    # 8. Detalhes do Checklist
     conn.execute('''
         CREATE TABLE IF NOT EXISTS checklist_itens (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             checklist_id INTEGER NOT NULL,
             pergunta TEXT NOT NULL,
-            conforme INTEGER, -- 1 para OK, 0 para Não OK
+            conforme INTEGER,
             observacao TEXT,
             foto_path TEXT,
             FOREIGN KEY(checklist_id) REFERENCES checklist_realizados(id) ON DELETE CASCADE
         )
     ''')
 
-    # Insere alguns tipos padrão se a tabela estiver vazia
+    # 9. Configurações do Sistema (Limites de Bateria, etc)
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS config_sistema (
+            chave TEXT PRIMARY KEY,
+            valor TEXT
+        )
+    ''')
+    
+    if conn.execute("SELECT count(*) FROM config_sistema WHERE chave='bat_aviso'").fetchone()[0] == 0:
+        conn.execute("INSERT INTO config_sistema (chave, valor) VALUES ('bat_aviso', '48')") 
+        conn.execute("INSERT INTO config_sistema (chave, valor) VALUES ('bat_critico', '54')") 
+
     if conn.execute('SELECT count(*) FROM tipos_equipamento').fetchone()[0] == 0:
         conn.execute("INSERT INTO tipos_equipamento (nome) VALUES ('Caminhão')")
         conn.execute("INSERT INTO tipos_equipamento (nome) VALUES ('Escavadeira')")
@@ -133,6 +148,24 @@ def init_db():
 
     conn.commit()
     conn.close()
+
+def calcular_status_bateria(data_fab_str):
+    if not data_fab_str: return "Indefinido", "cinza"
+    try:
+        fab = datetime.strptime(data_fab_str, "%Y-%m")
+        hoje = datetime.now()
+        meses_uso = (hoje.year - fab.year) * 12 + (hoje.month - fab.month)
+        
+        conn = get_db_connection()
+        aviso = int(conn.execute("SELECT valor FROM config_sistema WHERE chave='bat_aviso'").fetchone()['valor'])
+        critico = int(conn.execute("SELECT valor FROM config_sistema WHERE chave='bat_critico'").fetchone()['valor'])
+        conn.close()
+
+        if meses_uso >= critico: return "B/ Vencida", "vermelho"
+        elif meses_uso >= aviso: return "B/ Próximo ao Vencimento", "laranja"
+        else: return "Bateria Saúdavel", "verde"
+    except:
+        return "Erro Data", "cinza"
 
 # ==========================================
 # 2. ROTAS DE TELA
@@ -144,11 +177,11 @@ def view_operador():
 
 @app.route('/mapa')
 def view_mapa():
-    return render_template('mapa.html') # Alterei para index.html conforme padrão
+    return render_template('index.html') 
 
 @app.route('/')
 def index():
-    return render_template('mapa.html')
+    return render_template('index.html')
 
 # ==========================================
 # 3. API: OPERACIONAL
@@ -161,7 +194,6 @@ def registrar_posicao():
     conn = get_db_connection()
     
     for item in lista_dados:
-        # Busca cor do cadastro oficial
         cursor = conn.execute('SELECT cor_padrao FROM equipamentos_cadastrados WHERE nome = ?', (item['equipamento'],))
         res = cursor.fetchone()
         cor_final = res['cor_padrao'] if res else '#007bff'
@@ -198,30 +230,22 @@ def manage_registro(id):
     return jsonify({"status": msg})
 
 # ==========================================
-# 4. API: GESTÃO (ATIVOS, TIPOS, ÁREAS)
+# 4. API: GESTÃO (ATIVOS, TIPOS, ÁREAS, BATERIA)
 # ==========================================
 
-# --- TIPOS DE EQUIPAMENTO (ATUALIZAÇÃO NA API DE TIPOS (UPLOAD)) ---
+# --- TIPOS ---
 @app.route('/api/tipos', methods=['GET', 'POST'])
 def manage_tipos():
     conn = get_db_connection()
-    
     if request.method == 'POST':
-        # Verifica se tem arquivo e texto
-        nome = request.form.get('nome') # Agora vem via Form Data, não JSON puro
-        file = request.files.get('file') # Arquivo
-        
-        if not nome:
-            return jsonify({"erro": "Nome obrigatório"}), 400
-            
+        nome = request.form.get('nome')
+        file = request.files.get('file')
+        if not nome: return jsonify({"erro": "Nome obrigatório"}), 400
         icone_path = None
-        
-        # Processa o Upload
         if file and allowed_file(file.filename):
             filename = secure_filename(f"{datetime.now().timestamp()}_{file.filename}")
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            icone_path = f"icons/{filename}" # Caminho relativo para o HTML
-            
+            icone_path = f"icons/{filename}"
         try:
             conn.execute('INSERT INTO tipos_equipamento (nome, icone) VALUES (?, ?)', (nome, icone_path))
             conn.commit()
@@ -243,17 +267,17 @@ def delete_tipo(id):
     conn.close()
     return jsonify({"status": "deletado"})
 
-# --- ATIVOS (FROTA) ---
+# --- ATIVOS ---
 @app.route('/api/ativos', methods=['GET', 'POST'])
 def manage_ativos():
     conn = get_db_connection()
     if request.method == 'POST':
         d = request.json
         try:
-            # Agora salvamos o ID do tipo ou o nome do tipo (optei por salvar o nome do tipo para facilitar a busca no operador)
-            # Mas idealmente seria relacionamento. Vou manter simples: salvando o nome do tipo vindo do front.
-            conn.execute('INSERT INTO equipamentos_cadastrados (nome, tipo_id, cor_padrao) VALUES (?, ?, ?)',
-                         (d['nome'], d['tipo_id'], d['cor'])) # tipo_id aqui armazena o ID
+            conn.execute('''
+                INSERT INTO equipamentos_cadastrados (nome, tipo_id, cor_padrao, bateria_fabricacao) 
+                VALUES (?, ?, ?, ?)''',
+                (d['nome'], d['tipo_id'], d['cor'], d.get('bateria_fabricacao')))
             conn.commit()
             return jsonify({"status": "sucesso"}), 201
         except sqlite3.IntegrityError:
@@ -261,7 +285,6 @@ def manage_ativos():
         finally:
             conn.close()
     else:
-        # Faz Join para pegar o nome do tipo
         query = '''
             SELECT e.*, t.nome as nome_tipo 
             FROM equipamentos_cadastrados e 
@@ -270,7 +293,32 @@ def manage_ativos():
         '''
         rows = conn.execute(query).fetchall()
         conn.close()
-        return jsonify([dict(row) for row in rows])
+        lista = []
+        for r in rows:
+            item = dict(r)
+            status, cor_status = calcular_status_bateria(item['bateria_fabricacao'])
+            item['status_bateria'] = status
+            item['cor_bateria'] = cor_status
+            lista.append(item)
+        return jsonify(lista)
+
+# Adicione junto com as rotas de ATIVOS
+@app.route('/api/ativos_update/<int:id>', methods=['PUT'])
+def update_ativo(id):
+    d = request.json
+    conn = get_db_connection()
+    try:
+        conn.execute('''
+            UPDATE equipamentos_cadastrados 
+            SET nome = ?, cor_padrao = ?, bateria_fabricacao = ?
+            WHERE id = ?
+        ''', (d['nome'], d['cor'], d['bateria_fabricacao'], id))
+        conn.commit()
+        return jsonify({"status": "sucesso"})
+    except Exception as e:
+        return jsonify({"erro": str(e)}), 500
+    finally:
+        conn.close()
 
 @app.route('/api/ativos/<int:id>', methods=['DELETE'])
 def delete_ativo(id):
@@ -279,6 +327,42 @@ def delete_ativo(id):
     conn.commit()
     conn.close()
     return jsonify({"status": "deletado"})
+
+@app.route('/api/operador/bateria', methods=['POST'])
+def update_bateria_operador():
+    d = request.json
+    equipamento_nome = d.get('equipamento')
+    nova_data = d.get('data') 
+    if not equipamento_nome or not nova_data: return jsonify({"erro": "Dados incompletos"}), 400
+    conn = get_db_connection()
+    try:
+        conn.execute('UPDATE equipamentos_cadastrados SET bateria_fabricacao = ? WHERE nome = ?', (nova_data, equipamento_nome))
+        conn.commit()
+        status, cor = calcular_status_bateria(nova_data)
+        return jsonify({"status": "sucesso", "novo_status": status, "nova_cor": cor})
+    except Exception as e:
+        return jsonify({"erro": str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route('/api/config/bateria', methods=['GET', 'POST'])
+def manage_config_bateria():
+    conn = get_db_connection()
+    if request.method == 'POST':
+        d = request.json
+        conn.execute("UPDATE config_sistema SET valor = ? WHERE chave = 'bat_aviso'", (d['aviso'],))
+        conn.execute("UPDATE config_sistema SET valor = ? WHERE chave = 'bat_critico'", (d['critico'],))
+        conn.commit()
+        conn.close()
+        return jsonify({"status": "sucesso"})
+    else:
+        try:
+            aviso = conn.execute("SELECT valor FROM config_sistema WHERE chave='bat_aviso'").fetchone()['valor']
+            critico = conn.execute("SELECT valor FROM config_sistema WHERE chave='bat_critico'").fetchone()['valor']
+        except:
+            aviso, critico = 48, 54
+        conn.close()
+        return jsonify({"aviso": aviso, "critico": critico})
 
 # --- ÁREAS & REGIÕES ---
 @app.route('/api/salvar_area', methods=['POST'])
@@ -298,25 +382,35 @@ def get_areas():
     conn.close()
     return jsonify([{"id":r['id'], "nome":r['nome'], "geometry":json.loads(r['geometria']), "cor":r['cor']} for r in rows])
 
-@app.route('/api/area/<int:id>', methods=['DELETE'])
-def delete_area(id):
-    conn = get_db_connection()
-    conn.execute('DELETE FROM areas WHERE id = ?', (id,))
-    conn.commit()
-    conn.close()
-    return jsonify({"status": "deletado"})
-
-# --- ATUALIZAÇÃO: ROTA PARA EDITAR GEOMETRIA DA ÁREA ---
-@app.route('/api/area/<int:id>', methods=['PUT'])
-def update_area_geometry(id):
-    dados = request.json
+# ==========================================
+# ROTA UNIFICADA: DELETAR / EDITAR ÁREA
+# (CORRIGIDA PARA FUNCIONAR COM COR E GEOMETRIA)
+# ==========================================
+@app.route('/api/area/<int:id>', methods=['DELETE', 'PUT'])
+def manage_area(id):
     conn = get_db_connection()
     try:
-        # Atualiza apenas a geometria (o desenho)
-        conn.execute('UPDATE areas SET geometria = ? WHERE id = ?', 
-                     (json.dumps(dados['geometry']), id))
-        conn.commit()
-        return jsonify({"status": "sucesso"}), 200
+        if request.method == 'DELETE':
+            conn.execute('DELETE FROM areas WHERE id = ?', (id,))
+            conn.commit()
+            return jsonify({"status": "deletado"})
+        
+        elif request.method == 'PUT':
+            dados = request.json
+            
+            # Atualiza Geometria (se fornecida)
+            if 'geometry' in dados:
+                conn.execute('UPDATE areas SET geometria = ? WHERE id = ?', 
+                             (json.dumps(dados['geometry']), id))
+            
+            # Atualiza Cor (se fornecida)
+            if 'cor' in dados:
+                conn.execute('UPDATE areas SET cor = ? WHERE id = ?', 
+                             (dados['cor'], id))
+            
+            conn.commit()
+            return jsonify({"status": "sucesso"}), 200
+            
     except Exception as e:
         return jsonify({"erro": str(e)}), 500
     finally:
@@ -351,7 +445,6 @@ def delete_regiao(id):
 
 @app.route('/api/importar_csv', methods=['POST'])
 def importar_csv():
-    # ... (Código de importação CSV anterior mantido igual) ...
     if 'file' not in request.files: return jsonify({"erro": "Sem arquivo"}), 400
     file = request.files['file']
     stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
@@ -368,11 +461,8 @@ def importar_csv():
     conn.close()
     return jsonify({"status": "sucesso", "importados": c}), 201
 
-# --- BACKUP E RESTORE DO BANCO DE DADOS (.db) ---
-
 @app.route('/api/backup_db')
 def backup_db():
-    """Baixa o arquivo .db atual para o computador do usuário"""
     try:
         return send_file(DB_NAME, as_attachment=True, download_name=f"Backup_Maprix_{datetime.now().strftime('%Y%m%d_%H%M')}.db")
     except Exception as e:
@@ -380,33 +470,18 @@ def backup_db():
 
 @app.route('/api/restore_db', methods=['POST'])
 def restore_db():
-    """Recebe um arquivo .db e substitui o atual"""
-    if 'file' not in request.files:
-        return jsonify({"erro": "Nenhum arquivo enviado"}), 400
-    
+    if 'file' not in request.files: return jsonify({"erro": "Sem arquivo"}), 400
     file = request.files['file']
-    if file.filename == '':
-        return jsonify({"erro": "Arquivo vazio"}), 400
-
-    if not file.filename.endswith('.db'):
-        return jsonify({"erro": "Formato inválido. Envie um arquivo .db"}), 400
-
+    if not file.filename.endswith('.db'): return jsonify({"erro": "Formato inválido"}), 400
     try:
-        # Caminho temporário para salvar o upload
-        temp_path = "temp_restore.db"
-        file.save(temp_path)
-        
-        # Substitui o banco oficial
-        # (Em sistemas Windows, pode precisar fechar conexões abertas, 
-        # mas como usamos 'conn.close()' em todas as rotas, deve funcionar)
-        shutil.move(temp_path, DB_NAME)
-        
-        return jsonify({"status": "sucesso", "mensagem": "Banco restaurado com sucesso! Atualize a página."}), 200
+        file.save("temp_restore.db")
+        shutil.move("temp_restore.db", DB_NAME)
+        return jsonify({"status": "sucesso", "mensagem": "Restaurado!"}), 200
     except Exception as e:
-        return jsonify({"erro": f"Falha ao restaurar: {str(e)}"}), 500
+        return jsonify({"erro": str(e)}), 500
 
 # ==========================================
-# API: GESTÃO DE CHECKLIST (ADMIN)
+# GESTÃO DE CHECKLIST (ADMIN & OPERADOR)
 # ==========================================
 
 @app.route('/api/checklist/config/<int:tipo_id>', methods=['GET'])
@@ -440,11 +515,9 @@ def delete_checklist_item(id):
 @app.route('/api/checklist/submit', methods=['POST'])
 def submit_checklist():
     try:
-        # Dados vêm via FormData
         equipamento = request.form.get('equipamento')
         operador = request.form.get('operador')
         
-        # Cria o cabeçalho
         conn = get_db_connection()
         cursor = conn.execute(
             'INSERT INTO checklist_realizados (equipamento, operador, data_hora) VALUES (?, ?, ?)',
@@ -452,33 +525,28 @@ def submit_checklist():
         )
         checklist_id = cursor.lastrowid
         
-        # Processa os itens (as chaves do form são dinâmicas)
-        # Padrão esperado das chaves: "item_X_conforme", "item_X_obs", "item_X_foto" (onde X é o ID da pergunta ou índice)
-        
-        # Primeiro, identificamos quais IDs de perguntas vieram
-        perguntas_map = {} # id -> {texto, conforme, obs, foto}
-        
-        # Recupera texto das perguntas para salvar histórico (caso a pergunta mude depois)
-        # O ideal seria mandar o texto junto no form, vamos assumir que o front manda: "item_ID_texto"
-        
+        perguntas_map = {} 
         for key in request.form:
             if key.startswith('item_'):
-                parts = key.split('_') # item, ID, tipo
+                parts = key.split('_') 
                 p_id = parts[1]
-                tipo_campo = parts[2] # texto, conforme, obs
-                
+                tipo_campo = parts[2]
                 if p_id not in perguntas_map: perguntas_map[p_id] = {}
                 perguntas_map[p_id][tipo_campo] = request.form[key]
 
-        # Salva cada item
         for p_id, dados in perguntas_map.items():
-            texto = dados.get('texto', 'Item removido')
-            conforme = 1 if dados.get('conforme') == 'true' else 0
+            texto = dados.get('texto', 'Item')
+            
+            # --- CORREÇÃO AQUI ---
+            # O Checkbox HTML envia 'on' por padrão. Aceitamos 'on', 'true' ou '1'.
+            valor_recebido = dados.get('conforme')
+            conforme = 1 if valor_recebido in ['on', 'true', '1'] else 0
+            # ---------------------
+
             obs = dados.get('obs', '')
             
-            # Processa Foto
-            foto_file = request.files.get(f'item_{p_id}_foto')
             foto_path = None
+            foto_file = request.files.get(f'item_{p_id}_foto')
             if foto_file and allowed_file(foto_file.filename):
                 filename = secure_filename(f"chk_{checklist_id}_{p_id}_{int(datetime.now().timestamp())}.jpg")
                 foto_file.save(os.path.join(app.config['CHECKLIST_FOLDER'], filename))
@@ -496,6 +564,61 @@ def submit_checklist():
     except Exception as e:
         print(e)
         return jsonify({"erro": str(e)}), 500
+
+@app.route('/api/checklists/all')
+def get_all_checklists():
+    conn = get_db_connection()
+    headers = conn.execute('SELECT * FROM checklist_realizados ORDER BY id DESC LIMIT 50').fetchall()
+    
+    resultado = []
+    for h in headers:
+        itens = conn.execute('SELECT * FROM checklist_itens WHERE checklist_id = ?', (h['id'],)).fetchall()
+        resultado.append({
+            "id": h['id'],
+            "equipamento": h['equipamento'],
+            "operador": h['operador'],
+            "data_hora": h['data_hora'],
+            "itens": [dict(i) for i in itens]
+        })
+    conn.close()
+    return jsonify(resultado)
+
+@app.route('/api/checklists/novos')
+def check_novos_checklists():
+    last_id = request.args.get('last_id', 0)
+    conn = get_db_connection()
+    novos = conn.execute('SELECT count(*) as qtd, max(id) as max_id FROM checklist_realizados WHERE id > ?', (last_id,)).fetchone()
+    conn.close()
+    return jsonify({"qtd": novos['qtd'], "max_id": novos['max_id']})
+
+@app.route('/api/checklist/<int:id>', methods=['DELETE'])
+def delete_checklist(id):
+    conn = get_db_connection()
+    try:
+        conn.execute('DELETE FROM checklist_realizados WHERE id = ?', (id,))
+        conn.commit()
+        return jsonify({"status": "sucesso"})
+    except Exception as e:
+        return jsonify({"erro": str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route('/api/checklist/<int:id>', methods=['PUT'])
+def update_checklist_header(id):
+    d = request.json
+    conn = get_db_connection()
+    try:
+        conn.execute('''
+            UPDATE checklist_realizados 
+            SET equipamento = ?, operador = ?, data_hora = ? 
+            WHERE id = ?
+        ''', (d['equipamento'], d['operador'], d['data_hora'], id))
+        conn.commit()
+        return jsonify({"status": "sucesso"})
+    except Exception as e:
+        return jsonify({"erro": str(e)}), 500
+    finally:
+        conn.close()
 
 if __name__ == '__main__':
     init_db()

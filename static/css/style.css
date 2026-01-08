@@ -67,90 +67,130 @@ body, html {
 }
 
 /* =========================================
-   3. SIDEBAR (MENU LATERAL RESPONSIVO)
+   3. SIDEBAR PROFISSIONAL (Kinross Premium)
    ========================================= */
 
 .main-container { display: flex; height: calc(100vh - 63px); }
 
 .sidebar-menu {
-    width: 72px; /* Largura Fixa Desktop */
-    background: linear-gradient(180deg, #222222 0%, #1a1a1a 100%);
-    border-right: 1px solid #333;
+    width: 72px; /* Largura fixa ideal */
+    /* Gradiente sutil para dar profundidade */
+    background: linear-gradient(180deg, #1a1a1a 0%, #111111 100%);
+    border-right: 1px solid #2a2a2a;
     display: flex;
     flex-direction: column;
-    justify-content: space-between; /* Grupos nos extremos */
-    padding: 5px 0;
+    justify-content: space-between;
+    padding: 20px 0;
     z-index: 1500;
-    box-shadow: 4px 0 15px rgba(0,0,0,0.4);
+    /* Sombra projetada sobre o mapa */
+    box-shadow: 5px 0 20px rgba(0,0,0,0.5);
     
-    /* PREVINE CORTE EM TELAS PEQUENAS */
+    /* Configuração de Scroll (sem barra visível) */
     height: 100%; 
     overflow-y: auto; 
-    overflow-x: visible; /* Permite Tooltips */
+    overflow-x: visible; 
     scrollbar-width: none;
 }
 .sidebar-menu::-webkit-scrollbar { display: none; }
 
 .menu-group {
     display: flex; flex-direction: column; align-items: center;
-    gap: 12px; width: 100%;
+    gap: 15px; width: 100%;
 }
 
 .menu-divider {
-    width: 40%; height: 1px; background-color: rgba(255, 255, 255, 0.1); margin: 5px 0;
+    width: 50%; height: 1px; 
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent); 
+    margin: 5px 0;
 }
 
-/* Estilo dos Botões */
+/* --- BOTÕES DO MENU --- */
 .menu-btn {
-    width: 48px; height: 48px;
+    width: 46px; height: 46px;
     border: none; background: transparent;
-    color: #888; font-size: 20px;
-    border-radius: 12px; cursor: pointer;
+    color: #666; /* Cor inativa mais escura */
+    font-size: 20px;
+    border-radius: 12px;
+    cursor: pointer;
     position: relative;
-    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    
+    /* Transição elástica suave */
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     display: flex; align-items: center; justify-content: center;
 }
 
+/* Hover: Efeito de vidro sutil */
 .menu-btn:hover {
-    background: rgba(255, 255, 255, 0.08);
-    color: #fff;
-    transform: translateY(-2px);
+    background: rgba(255, 255, 255, 0.05);
+    color: #eee;
+    transform: translateX(4px); /* Move levemente para a direita */
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
 }
 
+/* Estado ATIVO (Selecionado) */
 .menu-btn.active {
-    background: rgba(255, 193, 7, 0.15);
+    background: linear-gradient(90deg, rgba(255, 193, 7, 0.15) 0%, transparent 100%);
     color: var(--gold);
-    box-shadow: 0 0 15px rgba(255, 193, 7, 0.2);
 }
 
-/* Indicador Dourado Lateral */
+/* O Indicador Dourado (Com Brilho/Glow) */
 .menu-btn.active::before {
-    content: ''; position: absolute;
-    left: -12px; top: 12px; bottom: 12px;
-    width: 4px; background-color: var(--gold);
+    content: '';
+    position: absolute;
+    left: 0; 
+    top: 50%; transform: translateY(-50%); /* Centraliza verticalmente */
+    height: 60%; /* Não ocupa altura total, fica mais elegante */
+    width: 3px;
+    background-color: var(--gold);
     border-radius: 0 4px 4px 0;
-    box-shadow: 0 0 8px var(--gold);
+    
+    /* O Segredo do visual "Neon/Tech" */
+    box-shadow: 0 0 10px var(--gold), 0 0 5px rgba(255, 193, 7, 0.5);
 }
 
-/* Botão Sair */
-.logout-btn:hover { color: #ff4d4d; background: rgba(255, 77, 77, 0.1); }
+/* Botão Sair (Vermelho sutil no hover) */
+.logout-btn:hover {
+    color: #ff6b6b;
+    background: rgba(255, 107, 107, 0.1);
+    box-shadow: none;
+}
 
-/* Tooltips Laterais */
+/* --- TOOLTIPS MELHORADOS (Balão de Dica) --- */
 .menu-btn[data-tooltip]:hover::after {
     content: attr(data-tooltip);
-    position: absolute; left: 60px; top: 50%; transform: translateY(-50%);
-    background: #333; color: var(--gold);
-    padding: 6px 12px; font-size: 12px; font-weight: 600;
-    white-space: nowrap; border-radius: 4px; border-left: 2px solid var(--gold);
-    box-shadow: 4px 4px 10px rgba(0,0,0,0.5);
+    position: absolute;
+    left: 65px; /* Afastado da barra */
+    top: 50%; transform: translateY(-50%);
+    
+    background: #222;
+    color: #fff;
+    padding: 6px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    border-radius: 4px;
+    
+    /* Detalhe Kinross: Borda dourada à esquerda */
+    border-left: 3px solid var(--gold);
+    box-shadow: 5px 5px 15px rgba(0,0,0,0.6);
+    
     pointer-events: none; z-index: 9999;
-    animation: fadeInRight 0.2s ease-out;
+    
+    /* Animação de entrada */
+    opacity: 0;
+    animation: tooltipSlideIn 0.2s forwards 0.1s; /* Delay pequeno */
 }
 
-@keyframes fadeInRight {
+@keyframes tooltipSlideIn {
     from { opacity: 0; transform: translate(-10px, -50%); }
     to { opacity: 1; transform: translate(0, -50%); }
 }
+
+/* --- ANIMAÇÃO DE PULSO NO SYNC (Opcional) --- */
+.menu-btn .fa-sync.spin {
+    animation: spin 1s linear infinite;
+}
+@keyframes spin { 100% { transform: rotate(360deg); } }
 
 /* =========================================
    4. PAINEL DESLIZANTE & CONTEÚDO
@@ -241,6 +281,25 @@ body, html {
 .btn-secondary:hover { background: #eee; border-color: #bbb; }
 .btn-full { width: 100%; }
 
+.btn-secondary-down {
+    background: #000000; border: 1px solid #ccc; color: var(--gold);
+    padding: 10px; border-radius: 6px; cursor: pointer;
+    font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: all 0.2s;
+}
+.btn-secondary-down:hover { background: #262626; border-color: #bbb; }
+.btn-full { width: 100%; }
+
+.btn-secondary-up {
+    background: var(--gold); border: 1px solid #ccc; color: #000000;
+    padding: 10px; border-radius: 6px; cursor: pointer;
+    font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: all 0.2s;
+}
+.btn-secondary-up:hover { background: var(--gold-dim); border-color: #bbb; }
+.btn-full { width: 100%; }
+
+
 .btn-icon-bg {
     width: 42px; border: none; border-radius: 6px; cursor: pointer; color: white; display: flex; align-items: center; justify-content: center;
 }
@@ -257,7 +316,11 @@ body, html {
 }
 .info-header { margin-bottom: 5px; color: var(--dark-panel); }
 .highlight { font-weight: bold; color: var(--dark-panel); }
-.btn-sm.btn-gold {
+.btn-sm{
+    background: var(--gold); color: var(--dark-panel); border: none;
+    padding: 6px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 12px; margin-top: 8px;
+}
+.btn-gold {
     background: var(--gold); color: var(--dark-panel); border: none;
     padding: 6px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 12px; margin-top: 8px;
 }
@@ -422,35 +485,45 @@ body, html {
 .lista-ativos li:hover { background: #f9f9f9; border-color: var(--gold); }
 
 /* =========================================
-   FIX DOS ÍCONES NO MAPA (ZOOM SUAVE)
+   FIX DOS ÍCONES NO MAPA (COM LABEL E ZOOM)
    ========================================= */
 
-/* Classe base para o container do ícone (definida no JS) */
+/* Container base do Leaflet */
 .marker-container {
-    background: transparent;
-    border: none;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    /* Permite que o conteúdo saia da caixa (para o label e zoom) */
+    overflow: visible !important; 
 }
 
-/* 1. Estilo para Ícones de IMAGEM (Uploads) */
+/* 1. Ícones de IMAGEM (Uploads) */
 .marker-img-content {
-    width: 100%;
-    height: 100%;
+    /* Força tamanho exato */
+    width: 40px !important; 
+    height: 40px !important;
+    
     object-fit: contain;
-    filter: drop-shadow(0 3px 4px rgba(0,0,0,0.4)); /* Sombra bonita */
-    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Animação elástica suave */
-    transform-origin: center bottom; /* O zoom cresce a partir da base */
+    display: block;
+    
+    /* Sombra e Animação */
+    filter: drop-shadow(0 3px 4px rgba(0,0,0,0.5));
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    transform-origin: center bottom;
 }
 
-/* Hover na div pai afeta a imagem filha */
+/* Hover na div pai afeta a imagem */
 .marker-container:hover .marker-img-content {
-    transform: scale(1.4) translateY(-5px); /* Aumenta e sobe um pouquinho */
-    z-index: 9999; /* Garante que fique por cima */
+    transform: scale(1.3) translateY(-5px);
+    z-index: 9999;
+    cursor: pointer;
 }
 
-/* 2. Estilo para Ícones SVG (Pinos Coloridos Padrão) */
+/* 2. Ícones SVG (Fallback) */
 .marker-svg-content {
-    width: 100%;
-    height: 100%;
+    width: 30px !important;
+    height: 40px !important;
     filter: drop-shadow(0 3px 2px rgba(0,0,0,0.3));
     transition: transform 0.2s ease-out;
     transform-origin: center bottom;
@@ -458,16 +531,38 @@ body, html {
 
 .marker-container:hover .marker-svg-content {
     transform: scale(1.2) translateY(-3px);
+    cursor: pointer;
 }
 
-/* Container de Preview de Upload */
-#previewContainer {
-    background: #fff;
-    border: 1px dashed #ccc;
+/* 3. NOME DO EQUIPAMENTO (LABEL) */
+.marker-label {
+    position: absolute;
+    /* Posiciona abaixo da imagem de 40px */
+    top: 42px; 
+    left: 50%;
+    transform: translateX(-50%);
+    
+    /* Estilo do balãozinho */
+    background: rgba(0, 0, 0, 0.8);
+    color: #fff;
+    padding: 3px 6px;
     border-radius: 4px;
-    padding: 5px;
-    margin-top: 5px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+    
+    /* Garante legibilidade */
+    text-shadow: 0 1px 1px black;
+    pointer-events: none; /* Clique passa através para o mapa */
+    z-index: 1000;
+    
+    /* Sombra suave */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
 }
+
+/* Opcional: Esconder label se não estiver em hover (descomente se quiser) */
+/* .marker-label { opacity: 0; transition: opacity 0.2s; } */
+/* .marker-container:hover .marker-label { opacity: 1; } */
 
 /* =========================================
    ESTILO PROFISSIONAL DO MODAL DE EDIÇÃO
@@ -550,6 +645,7 @@ body, html {
 .color-input-hidden {
     position: absolute;
     opacity: 0;
+    
     width: 0;
     height: 0;
     pointer-events: none;
@@ -572,8 +668,454 @@ body, html {
 }
 
 .creator-tag { 
-    position: absolute; 
+    position: absolute;
     bottom: 15px; 
+    left: 50%;
+    transform: translateX(-50%); 
     color: #444444a4; 
-    font-size: 12px; 
+    font-size: 10px; 
+    white-space: nowrap; 
 }
+
+/* Nome do Equipamento no Mapa */
+.marker-label {
+    position: absolute;
+    bottom: -20px; /* Abaixo do ícone */
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.7);
+    color: #fff;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: bold;
+    white-space: nowrap;
+    pointer-events: none;
+    text-shadow: 0 1px 2px black;
+}
+
+/* Badge de Bateria */
+.badge-bateria { 
+    padding: 3px 7px; 
+    border-radius: 10px; 
+    font-size: 10px; /* Fonte pequena para caber na sidebar */
+    font-weight: 700; 
+    color: white; 
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap; /* Não quebra linha */
+}
+
+.badge-bateria.verde { background-color: #28a745; }
+.badge-bateria.laranja { background-color: #fd7e14; }
+.badge-bateria.vermelho { background-color: #dc3545; }
+.badge-bateria.cinza { background-color: #6c757d; opacity: 0.8; }
+
+/* =========================================
+   ESTILO DE SCROLL PARA LISTA DE FROTA
+   ========================================= */
+
+#listaAtivos {
+    /* Define uma altura máxima. Se passar disso, cria barra de rolagem */
+    max-height: 55vh; 
+    overflow-y: auto;
+    
+    /* Espaçamento interno para não colar texto na barra */
+    padding-right: 5px;
+    
+    /* Borda sutil para delimitar a área de rolagem */
+    border-top: 1px solid #eee;
+    border-bottom: 1px solid #eee;
+    
+    /* --- Estilo da Barra de Rolagem (Firefox) --- */
+    scrollbar-width: thin;
+    scrollbar-color: var(--gold) #f0f0f0;
+}
+
+/* --- Estilo da Barra de Rolagem (Chrome, Edge, Safari) --- */
+#listaAtivos::-webkit-scrollbar {
+    width: 6px; /* Barra fina */
+}
+
+#listaAtivos::-webkit-scrollbar-track {
+    background: #f0f0f0; /* Cor do fundo da calha */
+    border-radius: 3px;
+}
+
+#listaAtivos::-webkit-scrollbar-thumb {
+    background-color: var(--gold); /* Cor da barra em si */
+    border-radius: 3px;
+    border: 1px solid #f0f0f0; /* Pequena borda para separar */
+}
+
+/* Efeito ao passar o mouse na barra */
+#listaAtivos::-webkit-scrollbar-thumb:hover {
+    background-color: var(--gold-dim);
+}
+
+/* =========================================
+   POPUP DO MAPA (ESTILO PROFISSIONAL)
+   ========================================= */
+
+/* Remove estilos padrão do Leaflet para o container */
+.leaflet-popup-content-wrapper {
+    background: white;
+    border-radius: 8px;
+    padding: 0; /* Remove padding interno padrão */
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+    border: 1px solid #ccc;
+}
+
+/* Ajusta a margem interna do conteúdo */
+.leaflet-popup-content {
+    margin: 0 !important;
+    width: 220px !important; /* Largura fixa para padronizar */
+    line-height: 1.4;
+}
+
+/* O triângulo (ponta) do balão */
+.leaflet-popup-tip {
+    background: white;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+}
+
+/* --- DESIGN INTERNO DO CARD --- */
+
+/* Cabeçalho do Popup (Escuro + Dourado) */
+.popup-header {
+    background: var(--dark-panel);
+    color: var(--gold);
+    padding: 10px 15px;
+    font-size: 13px;
+    font-weight: 700;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid var(--gold);
+}
+
+/* Corpo do Popup */
+.popup-body {
+    padding: 12px 15px;
+    font-size: 13px;
+    color: #444;
+    background: #fff;
+}
+
+.popup-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+.popup-row i { color: #888; width: 16px; text-align: center; }
+
+.popup-obs {
+    background: #f8f9fa;
+    border-left: 3px solid #ccc;
+    padding: 6px 10px;
+    margin: 8px 0;
+    font-style: italic;
+    color: #666;
+    font-size: 12px;
+}
+
+/* Rodapé com Ações */
+.popup-footer {
+    background: #f1f1f1;
+    padding: 8px;
+    display: flex;
+    justify-content: space-around;
+    border-top: 1px solid #e0e0e0;
+}
+
+.btn-popup {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    color: #555;
+    padding: 5px 10px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: 0.2s;
+}
+
+.btn-popup.edit:hover { background: #e2e6ea; color: var(--gold-dim); }
+.btn-popup.del:hover { background: #f8d7da; color: var(--danger); }
+
+/* Ajuste do botão fechar nativo do Leaflet */
+.leaflet-container a.leaflet-popup-close-button {
+    color: #fff;
+    top: 5px;
+    right: 5px;
+    font-size: 16px;
+    text-shadow: none;
+}
+.leaflet-container a.leaflet-popup-close-button:hover { color: var(--danger); }
+
+/* =========================================
+   CHECKLIST ACCORDION, BUSCA & GRID
+   (Substitua a seção de Checklist anterior por esta)
+   ========================================= */
+
+/* Área de rolagem específica para a lista */
+.checklist-scroll-area {
+    max-height: calc(100vh - 180px); /* Ajusta altura para caber na tela */
+    overflow-y: auto;
+    padding-right: 5px;
+    margin-top: 10px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--gold) #f0f0f0;
+}
+.checklist-scroll-area::-webkit-scrollbar { width: 6px; }
+.checklist-scroll-area::-webkit-scrollbar-thumb { background: var(--gold); border-radius: 3px; }
+
+/* Card Principal */
+.chk-card-admin {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    border-left: 4px solid var(--gold);
+    overflow: hidden; /* Importante para animação */
+    transition: box-shadow 0.2s;
+}
+.chk-card-admin:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+
+/* Cabeçalho (Sempre visível e Clicável) */
+.chk-header-clickable {
+    padding: 12px 15px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #fff;
+    transition: background 0.2s;
+}
+.chk-header-clickable:hover { background: #f9f9f9; }
+
+.chk-title { font-size: 14px; font-weight: 700; color: #333; }
+.chk-date { font-size: 12px; color: #888; display: flex; align-items: center; gap: 5px; }
+
+/* Grupo de Ações (Editar/Excluir) no Header */
+.chk-actions-group {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* Botões Pequenos de Ação */
+.btn-icon-sm {
+    width: 28px; height: 28px;
+    border: none; border-radius: 4px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; transition: all 0.2s;
+}
+.btn-icon-sm.edit { background: #e2e6ea; color: #555; }
+.btn-icon-sm.edit:hover { background: var(--gold); color: var(--dark-panel); }
+.btn-icon-sm.del { background: #f8d7da; color: #dc3545; }
+.btn-icon-sm.del:hover { background: var(--danger); color: white; }
+
+/* Seta do Accordion */
+.chk-toggle-icon {
+    color: var(--gold);
+    transition: transform 0.3s ease;
+    margin-left: 10px;
+}
+.chk-card-admin.open .chk-toggle-icon { transform: rotate(180deg); }
+
+/* Corpo (Oculto por padrão) */
+.chk-body-details {
+    display: none; /* Escondido */
+    padding: 15px;
+    background: #fcfcfc;
+    border-top: 1px solid #eee;
+    animation: slideDown 0.3s ease-out;
+}
+.chk-card-admin.open .chk-body-details { display: block; /* Mostra */ }
+
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Info do Operador */
+.chk-op-info {
+    font-size: 12px; color: #555; margin-bottom: 10px;
+    background: #eee; padding: 5px 10px; border-radius: 4px; display: inline-block;
+}
+
+/* =========================================
+   NOVO LAYOUT CHECKLIST (TEXTO ESQ | STATUS+FOTO DIR)
+   ========================================= */
+
+/* Container da Linha (Agora clicável) */
+.chk-item-row-new {
+    display: flex;
+    justify-content: space-between; /* Texto na ponta, painel na outra */
+    align-items: center;
+    padding: 10px 15px;
+    border-bottom: 1px solid #eee;
+    background: #fff;
+    cursor: pointer; /* Indica que é clicável para ver obs */
+    transition: background 0.2s;
+}
+
+.chk-item-row-new:last-child { border-bottom: none; }
+
+.chk-item-row-new:hover {
+    background-color: #f0f8ff; /* Azul bem clarinho no hover */
+}
+
+/* Lado Esquerdo: Pergunta (Flexível) */
+.chk-left-content {
+    flex: 1; /* Tenta ocupar todo o espaço restante */
+    min-width: 0; /* OBRIGATÓRIO: Permite que o texto quebre linha dentro do flex */
+    padding-right: 15px; /* Espaço para não colar no painel direito */
+    word-wrap: break-word; /* Garante que palavras gigantes quebrem */
+}
+
+/* Garante que o texto da pergunta em si obedeça */
+.chk-question-main {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    line-height: 1.3;
+}
+
+.chk-has-obs-indicator {
+    font-size: 11px;
+    color: #888;
+    margin-top: 4px;
+    display: inline-block;
+    font-style: italic;
+}
+.chk-has-obs-indicator i { margin-right: 4px; color: var(--gold-dim); }
+
+/* Lado Direito: Painel Vertical (Status + Foto) - FIXO */
+.chk-right-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    
+    /* A MÁGICA ACONTECE AQUI: */
+    flex-shrink: 0; /* 🔒 NUNCA encolhe, mesmo se o texto for gigante */
+    width: 90px;    /* Largura fixa para garantir alinhamento perfeito entre linhas */
+}
+
+/* Status Badge (Pequeno) */
+.status-badge-mini {
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+.status-badge-mini.ok { color: var(--success); background: rgba(40, 167, 69, 0.1); }
+.status-badge-mini.nok { color: var(--danger); background: rgba(220, 53, 69, 0.1); }
+
+/* Botão de Foto (Quadrado e Moderno) */
+.btn-photo-mini {
+    width: 30px;
+    height: 30px;
+    border: 1px solid #ddd;
+    background: #fff;
+    border-radius: 6px;
+    color: #666;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+    font-size: 14px;
+}
+
+.btn-photo-mini:hover {
+    background: var(--dark-panel);
+    color: var(--gold);
+    border-color: var(--dark-panel);
+    transform: scale(1.1);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+/* =========================================
+   VISUALIZADOR DE IMAGENS (CHECKLIST)
+   ========================================= */
+
+/* Botão discreto na lista ("Ver Foto") */
+.btn-view-photo {
+    background: transparent;
+    border: 1px solid #ccc;
+    color: #555;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+    margin-left: 10px;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.btn-view-photo:hover {
+    background: var(--dark-panel);
+    color: var(--gold);
+    border-color: var(--dark-panel);
+}
+
+/* Modal Container da Imagem */
+.modal-image-container {
+    position: relative;
+    max-width: 90%;
+    max-height: 90vh;
+    background: transparent;
+    box-shadow: 0 0 20px rgba(0,0,0,0.8);
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* A Imagem em si */
+#imgViewerSrc {
+    max-width: 100%;
+    max-height: 85vh; /* Garante que caiba na tela */
+    border-radius: 4px;
+    border: 2px solid #fff;
+    object-fit: contain;
+    background: #000;
+}
+
+/* Legenda (Opcional) */
+.image-caption {
+    margin-top: 10px;
+    color: #fff;
+    font-size: 14px;
+    text-shadow: 0 1px 2px #000;
+    text-align: center;
+}
+
+/* Botão Fechar Flutuante */
+.close-image-btn {
+    position: absolute;
+    top: -15px;
+    right: -15px;
+    background: var(--danger);
+    color: white;
+    border: 2px solid white;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    z-index: 10;
+}
+.close-image-btn:hover { background: #c82333; transform: scale(1.1); }
