@@ -383,8 +383,22 @@ body, html {
 .modal-footer {
     padding: 15px 25px; background: #f0f0f0; display: flex; justify-content: flex-end; gap: 10px;
 }
-.btn-save { background: var(--dark-panel); color: var(--gold); border: none; padding: 10px 20px; border-radius: 4px; font-weight: bold; cursor: pointer; }
-.btn-cancel { background: white; border: 1px solid #ccc; padding: 10px 20px; border-radius: 4px; cursor: pointer; }
+.btn-save { 
+    background: var(--dark-panel); 
+    color: white; 
+    border: none; 
+    padding: 10px 20px; 
+    border-radius: 4px; 
+    font-weight: bold; 
+    cursor: pointer; 
+}
+.btn-cancel { 
+    background: white; 
+    border: 1px solid #ccc; 
+    padding: 10px 20px; 
+    border-radius: 4px; 
+    cursor: pointer; 
+}
 
 /* Animações */
 .bounceIn { animation: bounceIn 0.4s cubic-bezier(0.215, 0.610, 0.355, 1.000); }
