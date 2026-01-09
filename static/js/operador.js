@@ -1,82 +1,60 @@
 /**
- * MAPRIX MOBILE - Operador Logic v6.0 (Final)
- * Funcionalidades:
- * 1. Inicialização Async (Corrige bloqueio indevido de equipamentos sem checklist).
- * 2. Validação Rigorosa (Obriga Foto/Obs em Alertas).
- * 3. Hora Local (Corrige fuso horário no backend).
+ * MAPRIX MOBILE - Operador Logic v5.0 (Correção Sync & Time)
  */
 
 // =========================================================
 // 1. VARIÁVEIS GLOBAIS
 // =========================================================
 let equipamentosConhecidos = [];
-let listaCompletaAtivos = []; // Cache essencial para validação de tipo
+let listaCompletaAtivos = []; 
 let checklistRealizado = false;
-let checklistNecessario = true; // Padrão: Bloqueado até verificação
+let checklistNecessario = true; // Padrão: Bloqueado até provar o contrário
 let tempEquipNome = "";
 
 // =========================================================
 // 2. UTILITÁRIOS VISUAIS
 // =========================================================
-
+// (Mantenha as funções showToast, showAlert, fecharModalAlert iguais ao que você já tem)
 function showToast(msg, type = 'default') {
     const container = document.getElementById('toastContainer');
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
-    
     let icon = 'info-circle';
     if(type === 'success') icon = 'check-circle';
     if(type === 'error') icon = 'times-circle';
     if(type === 'warning') icon = 'exclamation-circle';
-
     toast.innerHTML = `<i class="fas fa-${icon}"></i> <span>${msg}</span>`;
     container.appendChild(toast);
-
-    setTimeout(() => {
-        toast.classList.add('hiding');
-        setTimeout(() => toast.remove(), 400);
-    }, 3000);
+    setTimeout(() => { toast.classList.add('hiding'); setTimeout(() => toast.remove(), 400); }, 3000);
 }
 
 function showAlert(title, msg, type = 'warning', callback = null) {
     const modal = document.getElementById('modalAlert');
     const iconDiv = document.getElementById('alertIcon');
     const btn = document.getElementById('btnAlertOk');
-    
     document.getElementById('alertTitle').innerText = title;
     document.getElementById('alertMessage').innerText = msg;
-    
     iconDiv.className = `modal-icon ${type}`;
-    let iconHtml = '<i class="fas fa-exclamation-triangle"></i>';
-    if(type === 'success') iconHtml = '<i class="fas fa-check"></i>';
-    if(type === 'error') iconHtml = '<i class="fas fa-times"></i>';
-    iconDiv.innerHTML = iconHtml;
-
+    iconDiv.innerHTML = type === 'success' ? '<i class="fas fa-check"></i>' : (type === 'error' ? '<i class="fas fa-times"></i>' : '<i class="fas fa-exclamation-triangle"></i>');
     const newBtn = btn.cloneNode(true);
     btn.parentNode.replaceChild(newBtn, btn);
-    
-    newBtn.onclick = function() {
-        modal.style.display = 'none';
-        if(callback) callback();
-    };
-
+    newBtn.onclick = function() { modal.style.display = 'none'; if(callback) callback(); };
     modal.style.display = 'flex';
 }
-
 function fecharModalAlert() { document.getElementById('modalAlert').style.display = 'none'; }
 
 // =========================================================
-// 3. INICIALIZAÇÃO E LOGIN (ASYNC FIX)
+// 3. INICIALIZAÇÃO (CORRIGIDA COM ASYNC/AWAIT)
 // =========================================================
 
 document.addEventListener("DOMContentLoaded", async () => {
-    // 1. Bloqueia visualmente até carregar dados
+    // 1. Bloqueia visualmente o botão ao carregar
     atualizarEstadoBotaoPrincipal(false);
 
-    // 2. Aguarda carregamento da lista para garantir validação correta
+    // 2. Espera carregar a lista de ativos ANTES de tentar logar
     await carregarListaAtivos();
     
-    // 3. Verifica sessão e aplica regras
+    // 3. Só agora verifica sessão ativa
     const session = JSON.parse(localStorage.getItem('maprix_session'));
     if (session) {
         entrarNoApp(session.equipamento, session.operador);
@@ -88,22 +66,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     atualizarPendentes();
 });
 
-// Transforma em Promise para usar await
+// Transforma carregar lista em Promise para podermos usar 'await'
 function carregarListaAtivos() {
     return fetch('/api/ativos')
         .then(r => r.json())
         .then(lista => {
-            listaCompletaAtivos = lista; // Guarda lista completa (com IDs e Tipos)
+            console.log("Lista de ativos carregada:", lista.length);
+            listaCompletaAtivos = lista;
             equipamentosConhecidos = lista.map(item => item.nome);
             
             const ul = document.getElementById('listaSuspensa');
             ul.innerHTML = "";
             lista.forEach(item => {
                 const li = document.createElement('li');
-                li.innerHTML = `
-                    <span>${item.nome}</span> 
-                    <span class="type-tag">${item.nome_tipo || 'Geral'}</span>
-                `;
+                li.innerHTML = `<span>${item.nome}</span> <span class="type-tag">${item.nome_tipo || 'Geral'}</span>`;
                 li.onclick = () => {
                     document.getElementById('inputEquipamento').value = item.nome;
                     ul.style.display = 'none';
@@ -124,7 +100,8 @@ function filtrarEquipamentos() {
     for (let i = 0; i < li.length; i++) {
         const texto = li[i].innerText || li[i].textContent;
         if (texto.toUpperCase().indexOf(filtro) > -1) {
-            li[i].style.display = ""; visiveis++;
+            li[i].style.display = "";
+            visiveis++;
         } else { li[i].style.display = "none"; }
     }
     if (filtro === "") ul.style.display = 'none';
@@ -139,8 +116,6 @@ document.addEventListener('click', function(event) {
     const wrapper = document.querySelector('.dropdown-wrapper');
     if (wrapper && !wrapper.contains(event.target)) document.getElementById('listaSuspensa').style.display = 'none';
 });
-
-// --- Lógica de Login ---
 
 async function iniciarTurno() {
     const equip = document.getElementById('inputEquipamento').value.trim();
@@ -169,7 +144,8 @@ async function confirmarAutoCadastro() {
             body: JSON.stringify({ nome: tempEquipNome, tipo_id: null, cor: '#007bff' })
         });
         showToast("Equipamento cadastrado!", "success");
-        await carregarListaAtivos(); // Recarrega para incluir o novo
+        // Recarrega a lista para ter o dado atualizado
+        await carregarListaAtivos();
         efetuarLogin(tempEquipNome, oper);
     } catch (e) { showToast("Erro ao cadastrar.", "error"); } 
     finally {
@@ -191,24 +167,21 @@ function entrarNoApp(equip, oper) {
     document.getElementById('tela-operacao').style.display = 'flex';
     document.getElementById('displayEquipamento').innerText = equip;
     
-    // VERIFICAÇÃO CRÍTICA
+    // Chama a verificação
     verificarRegrasDeAcesso(equip);
 }
 
-// =========================================================
-// 4. VERIFICAÇÃO DE REGRAS (Checklist vs Liberado)
-// =========================================================
-
+// === NOVO: LÓGICA INTELIGENTE DE BLOQUEIO ===
 async function verificarRegrasDeAcesso(nomeEquipamento) {
     const feedback = document.getElementById('msgFeedback');
-    feedback.innerText = "Validando acessos...";
+    feedback.innerText = "Verificando checklist...";
     
-    // Busca na lista já carregada
+    // Busca o ativo na lista JÁ CARREGADA
     const ativo = listaCompletaAtivos.find(a => a.nome === nomeEquipamento);
     
-    // Se não tem cadastro ou não tem tipo -> LIBERA
+    // Se não achar o ativo ou ele não tiver tipo, libera geral
     if (!ativo || !ativo.tipo_id) {
-        liberarAcesso("Checklist não aplicável");
+        liberarAcesso("Sem configuração de checklist");
         return;
     }
 
@@ -217,27 +190,30 @@ async function verificarRegrasDeAcesso(nomeEquipamento) {
         const perguntas = await res.json();
 
         if (perguntas.length > 0) {
-            // TEM PERGUNTAS -> BLOQUEIA
+            // TEM PERGUNTAS: BLOQUEIA
             checklistNecessario = true;
             checklistRealizado = false;
             atualizarEstadoBotaoPrincipal(false);
             feedback.innerText = "Checklist Pendente";
             
+            // Verifica se o usuário já fez checklist HOJE localmente (opcional, mas bom)
+            // (Lógica simples mantida: bloqueia e pede envio)
             setTimeout(() => {
-                showToast("Checklist obrigatório pendente.", "warning");
+                showToast("Realize o checklist para liberar.", "warning");
             }, 800);
         } else {
-            // SEM PERGUNTAS -> LIBERA
-            liberarAcesso("Checklist vazio (Dispensado)");
+            // SEM PERGUNTAS: LIBERA O LOOP
+            liberarAcesso("Não há itens para verificar");
         }
     } catch (e) {
         console.error("Erro regra:", e);
-        showToast("Erro de verificação online.", "error");
+        // Em caso de erro de rede, mantém o estado atual ou avisa
+        showToast("Erro ao verificar regras.", "error");
     }
 }
 
 function liberarAcesso(motivo) {
-    console.log("Acesso liberado:", motivo);
+    console.log("Acesso liberado: " + motivo);
     checklistNecessario = false;
     checklistRealizado = true;
     atualizarEstadoBotaoPrincipal(true);
@@ -258,12 +234,18 @@ function atualizarEstadoBotaoPrincipal(ativo) {
 }
 
 // =========================================================
-// 5. OPERAÇÃO (GPS)
+// 4. OPERAÇÃO (GPS)
 // =========================================================
 
 function capturarLocalizacao() {
+    // Só bloqueia se o checklist for necessário E não tiver sido feito
     if (checklistNecessario && !checklistRealizado) {
-        showAlert("Bloqueado", "Realize o checklist obrigatório antes de prosseguir.", "warning", () => abrirChecklist());
+        showAlert(
+            "Acesso Bloqueado", 
+            "Este equipamento possui checklist obrigatório pendente.", 
+            "warning", 
+            () => { abrirChecklist(); } 
+        );
         return;
     }
 
@@ -289,7 +271,7 @@ function capturarLocalizacao() {
                 btn.style.transform = "scale(1)";
             }, 
             (err) => { 
-                showToast("Erro ao obter GPS.", "error");
+                showToast("Erro de GPS.", "error");
                 feed.className = "feedback-msg error"; feed.innerText = "Erro GPS"; 
                 btn.style.transform = "scale(1)"; 
             }, 
@@ -305,8 +287,8 @@ function processarEnvio(dados) {
         fetch('/api/registrar', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(dados) })
         .then(r => { 
             if(r.ok){ 
-                feed.className = "feedback-msg success"; feed.innerHTML = '<i class="fas fa-check"></i> Registrado'; 
-                showToast("Posição salva!", "success");
+                feed.className = "feedback-msg success"; feed.innerHTML = '<i class="fas fa-check"></i> OK'; 
+                showToast("Posição enviada!", "success");
                 setTimeout(() => { feed.className = "feedback-msg"; feed.innerText = "Pronto"; }, 3000); 
             } else throw new Error(); 
         })
@@ -321,7 +303,7 @@ function processarEnvio(dados) {
 }
 
 // =========================================================
-// 6. CHECKLIST (COM VALIDAÇÃO E HORA LOCAL)
+// 5. CHECKLIST (COM CORREÇÃO DE HORA)
 // =========================================================
 
 function abrirChecklist() {
@@ -330,9 +312,11 @@ function abrirChecklist() {
     document.getElementById('containerPerguntas').innerHTML = '<div style="text-align:center; padding:20px; color:#888;"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>';
     document.getElementById('modalChecklistOp').style.display = 'flex';
 
+    // Se já sabemos que não precisa (na verificação inicial), avisar
     if (!checklistNecessario) {
         document.getElementById('containerPerguntas').innerHTML = 
-            '<div style="text-align:center; padding:20px; color:#28a745;"><i class="fas fa-check-circle" style="font-size:30px;"></i><br>Checklist dispensado.</div>';
+            '<div style="text-align:center; padding:20px; color:#28a745;">' + 
+            '<i class="fas fa-check-circle" style="font-size:30px; margin-bottom:10px;"></i><br>Este equipamento não necessita de checklist.</div>';
         return;
     }
 
@@ -340,7 +324,7 @@ function abrirChecklist() {
     if(ativo && ativo.tipo_id) {
         carregarItensChecklist(ativo.tipo_id);
     } else {
-        document.getElementById('containerPerguntas').innerHTML = "<p style='text-align:center'>Erro ao identificar tipo.</p>";
+        document.getElementById('containerPerguntas').innerHTML = "<p style='text-align:center'>Equipamento sem tipo definido.</p>";
     }
 }
 
@@ -350,8 +334,9 @@ function carregarItensChecklist(tipoId) {
         container.innerHTML = "";
         
         if(perguntas.length === 0) {
-            container.innerHTML = "<p style='text-align:center; color:#666'>Lista vazia.</p>";
-            liberarAcesso("Vazio");
+            container.innerHTML = "<p style='text-align:center; color:#666'>Nenhum item configurado.</p>";
+            // Auto-libera se abriu e viu que estava vazio
+            liberarAcesso("Lista vazia");
             return;
         }
 
@@ -368,7 +353,7 @@ function carregarItensChecklist(tipoId) {
                 </div>
                 <div class="chk-details">
                     <input type="hidden" name="item_${p.id}_texto" value="${p.texto}">
-                    <input type="text" name="item_${p.id}_obs" class="chk-obs" placeholder="Descreva o problema...">
+                    <input type="text" name="item_${p.id}_obs" class="chk-obs" placeholder="Observação...">
                     <label class="btn-photo-upload" id="lbl_foto_${p.id}">
                         <i class="fas fa-camera"></i>
                         <input type="file" name="item_${p.id}_foto" accept="image/*" style="display:none" onchange="marcarFoto(${p.id})">
@@ -383,69 +368,47 @@ function carregarItensChecklist(tipoId) {
 function marcarFoto(id) { document.getElementById(`lbl_foto_${id}`).classList.add('has-file'); }
 function fecharModalChecklist() { document.getElementById('modalChecklistOp').style.display = 'none'; }
 
-// === VALIDAÇÃO RIGOROSA E ENVIO ===
 function enviarChecklist() {
     const session = JSON.parse(localStorage.getItem('maprix_session'));
     const form = document.getElementById('formChecklist');
     
-    // 1. Verifica se há perguntas carregadas
+    // Validação
     const itens = document.querySelectorAll('.checklist-item');
-    if(itens.length === 0 && checklistNecessario) {
-        // Se deveria ter checklist mas a lista ta vazia (erro de carga), não deixa enviar
-        showToast("Erro: Lista vazia. Tente recarregar.", "error");
-        return;
-    }
-
-    // 2. Loop de Validação Item a Item
     for (const item of itens) {
         const label = item.querySelector('.chk-label').innerText;
-        const checkbox = item.querySelector('input[type="checkbox"]');
         const obsInput = item.querySelector('.chk-obs');
         const fileInput = item.querySelector('input[type="file"]');
         
-        const isOk = checkbox.checked; // true = OK (Verde), false = Alerta (Vermelho)
-
-        // REGRA A: Se estiver como ALERTA (Vermelho/Não OK) -> OBS E FOTO OBRIGATÓRIAS
-        if (!isOk) {
-            if (!obsInput.value.trim()) {
-                showToast(`Descreva o problema em: "${label}"`, "warning");
-                obsInput.focus();
-                return;
-            }
-            if (fileInput.files.length === 0) {
-                showToast(`Foto obrigatória para o alerta em: "${label}"`, "warning");
-                return;
-            }
-        }
-
-        // REGRA B: Se estiver OK mas tem texto -> FOTO OBRIGATÓRIA (Evidência)
-        if (isOk && obsInput.value.trim() && fileInput.files.length === 0) {
-            showToast(`Adicione foto para evidenciar a obs em: "${label}"`, "warning");
+        if (obsInput.value.trim() && fileInput.files.length === 0) {
+            showToast(`Adicione foto para: "${label}"`, "warning");
             return;
         }
     }
 
-    // 3. Preparação do Envio
     const formData = new FormData(form);
     formData.append('equipamento', session.equipamento);
     formData.append('operador', session.operador);
 
-    // FIX HORA LOCAL: Calcula offset e envia hora correta
+    // --- CORREÇÃO DA HORA: ENVIA DATA LOCAL ---
+    // O JS pega a hora do dispositivo do operador.
     const agora = new Date();
+    // Ajusta o fuso horário manualmente para enviar ISO correto
     const offsetMs = agora.getTimezoneOffset() * 60000;
     const localIso = new Date(agora.getTime() - offsetMs).toISOString().slice(0, 19);
+    
     formData.append('data_hora_local', localIso);
+    // ------------------------------------------
 
     const btn = document.querySelector('#modalChecklistOp .btn-save');
     const originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ...';
     btn.disabled = true;
 
     fetch('/api/checklist/submit', { method: 'POST', body: formData })
     .then(r => r.json())
     .then(d => {
         if(d.status === 'sucesso') {
-            showAlert("Sucesso", "Checklist enviado e validado!", "success");
+            showAlert("Sucesso", "Checklist registrado!", "success");
             liberarAcesso("Checklist Concluído");
             fecharModalChecklist();
         } else {
@@ -457,7 +420,7 @@ function enviarChecklist() {
 }
 
 // =========================================================
-// 6. BATERIA & EXTRAS
+// 6. OUTROS (BATERIA, SYNC, LOGOUT)
 // =========================================================
 
 function verStatusBateria() {
@@ -478,25 +441,31 @@ function atualizarVisualBateria(status, cor) {
     const texto = document.getElementById('textoStatusBateria');
     const icon = document.getElementById('iconBateriaModal');
     const card = document.querySelector('.battery-status-card');
+
     texto.innerText = (!status || status==="indefinido") ? "DATA NÃO INFORMADA" : status;
+    
     let corHex = '#ccc';
     if(cor === 'verde') corHex = '#28a745';
     if(cor === 'laranja') corHex = '#fd7e14';
     if(cor === 'vermelho') corHex = '#dc3545';
-    texto.style.color = corHex; icon.style.color = corHex; card.style.borderColor = corHex;
+
+    texto.style.color = corHex;
+    icon.style.color = corHex;
+    card.style.borderColor = corHex;
 }
 
 function salvarDataBateria() {
     const session = JSON.parse(localStorage.getItem('maprix_session'));
     const novaData = document.getElementById('opDataBateria').value;
     if(!novaData) return showToast("Selecione a data.", "warning");
+
     fetch('/api/operador/bateria', {
         method: 'POST', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ equipamento: session.equipamento, data: novaData })
     }).then(r => r.json()).then(d => {
         if(d.status === 'sucesso') {
             atualizarVisualBateria(d.novo_status, d.nova_cor);
-            showToast("Data atualizada!", "success");
+            showToast("Atualizado!", "success");
         }
     });
 }
@@ -521,6 +490,7 @@ function atualizarPendentes() {
 function sincronizarPendentes() {
     const f = JSON.parse(localStorage.getItem('maprix_fila')) || [];
     if(f.length === 0) return;
+    
     document.getElementById('btnSync').disabled = true;
     fetch('/api/registrar', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(f) })
     .then(r => {
