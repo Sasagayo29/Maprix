@@ -537,3 +537,121 @@ input:not(:checked) + .slider:before {
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
 }
+
+/* =========================================
+   UI PROFISSIONAL - BOTÕES E MODAIS
+   ========================================= */
+
+/* --- BOTÃO FECHAR (X) NO HEADER --- */
+.close-modal-btn {
+    width: 32px;
+    height: 32px;
+    background: rgba(255, 255, 255, 0.05); /* Fundo sutil */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 50%; /* Circular */
+    color: #888;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 14px;
+}
+
+.close-modal-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border-color: #fff;
+}
+
+.close-modal-btn:active {
+    background: rgba(207, 53, 46, 0.2); /* Vermelho sutil ao tocar */
+    color: #ff6b6b;
+    border-color: #ff6b6b;
+    transform: scale(0.9);
+}
+
+/* --- FOOTER DO MODAL (GRID) --- */
+/* Cria um layout onde o botão de Enviar é maior que o Cancelar */
+.modal-footer {
+    background: #1a1a1a; /* Um pouco mais escuro que o card */
+    padding: 15px 20px;
+    border-top: 1px solid #333;
+    display: grid;
+    grid-template-columns: 1fr 1.5fr; /* Cancelar ocupa 1 parte, Enviar ocupa 1.5 */
+    gap: 15px;
+    border-bottom-left-radius: 8px; /* Arredonda junto com o card */
+    border-bottom-right-radius: 8px;
+}
+
+/* --- BOTÃO CANCELAR (Secundário - Ghost) --- */
+.btn-cancel {
+    background: transparent;
+    border: 1px solid #444;
+    color: #aaa;
+    padding: 12px;
+    border-radius: 8px;
+    font-family: 'Segoe UI', Roboto, sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.btn-cancel:active {
+    background: #333;
+    color: #fff;
+    border-color: #666;
+}
+
+/* --- BOTÃO ENVIAR / SALVAR (Primário - Gold) --- */
+.btn-save {
+    background: var(--gold); /* Amarelo Kinross */
+    color: #000; /* Texto preto para alto contraste */
+    border: none;
+    padding: 12px;
+    border-radius: 8px;
+    font-family: 'Segoe UI', Roboto, sans-serif;
+    font-weight: 800; /* Mais grosso */
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 4px 15px rgba(255, 193, 7, 0.25); /* Glow Dourado */
+    transition: transform 0.1s, box-shadow 0.2s;
+}
+
+.btn-save:active {
+    transform: scale(0.97);
+    box-shadow: 0 2px 8px rgba(255, 193, 7, 0.15);
+}
+
+.btn-save i {
+    font-size: 14px;
+}
+
+/* --- AJUSTE NO HEADER DO MODAL --- */
+.modal-header {
+    padding: 15px 20px;
+    border-bottom: 1px solid #333;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #222; /* Leve destaque no header */
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}

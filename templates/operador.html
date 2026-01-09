@@ -122,15 +122,18 @@
     </div>
 
     <div id="modalChecklistOp" class="modal-overlay" style="display: none; align-items: flex-start; overflow-y: auto; padding-top: 20px;">
-        <div class="modal-card bounceIn" style="width: 95%; max-width: 500px; margin-bottom: 20px;">
+        <div class="modal-card bounceIn" style="width: 95%; max-width: 500px; margin-bottom: 20px; border-radius: 12px; overflow: hidden;">
+        
             <div class="modal-header">
-                <h3><i class="fas fa-clipboard-list"></i> Checklist Pré-Operacional</h3>
-                <button onclick="fecharModalChecklist()" class="close-modal-btn"><i class="fas fa-times"></i></button>
+                <h3><i class="fas fa-clipboard-check" style="color:var(--gold)"></i> Checklist</h3>
+                <button onclick="fecharModalChecklist()" class="close-modal-btn">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
-            
-            <div class="modal-body">
-                <p style="font-size: 13px; color: #aaa; margin-bottom: 15px;">
-                    Verifique os itens abaixo para o equipamento <strong id="chkEquipNome" style="color:var(--gold)">--</strong>.
+        
+            <div class="modal-body" style="background: #181818;">
+                <p style="font-size: 13px; color: #888; margin-bottom: 20px; text-align: center;">
+                    Valide os itens para <strong id="chkEquipNome" style="color:#fff">--</strong>
                 </p>
 
                 <form id="formChecklist">
@@ -139,8 +142,12 @@
             </div>
 
             <div class="modal-footer">
-                <button class="btn-cancel" onclick="fecharModalChecklist()">Cancelar</button>
-                <button class="btn-save" onclick="enviarChecklist()"><i class="fas fa-paper-plane"></i> Enviar</button>
+                <button class="btn-cancel" onclick="fecharModalChecklist()">
+                    Voltar
+                </button>
+                <button class="btn-save" onclick="enviarChecklist()">
+                    <span>Confirmar</span> <i class="fas fa-check"></i> 
+                </button>
             </div>
         </div>
     </div>
