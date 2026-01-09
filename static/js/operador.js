@@ -331,7 +331,7 @@ function carregarItensChecklist(tipoId) {
         container.innerHTML = "";
         
         if(perguntas.length === 0) {
-            container.innerHTML = "<p style='text-align:center; color:#666'>Nenhum item configurado.</p>";
+            container.innerHTML = "<div style='text-align:center; padding:30px; color:#666'><i class='fas fa-clipboard-check' style='font-size:40px; margin-bottom:10px; opacity:0.3'></i><p>Nenhum item configurado.</p></div>";
             liberarAcesso("Lista vazia");
             return;
         }
@@ -339,8 +339,8 @@ function carregarItensChecklist(tipoId) {
         perguntas.forEach(p => {
             const div = document.createElement('div');
             div.className = 'checklist-item';
-            // MUDANÇA AQUI: Removemos o style="display:none" do chk-details
-            // MUDANÇA AQUI: Removemos o onchange="toggleObsRequired" pois não vamos mais esconder nada
+            
+            // HTML Estruturado para o novo CSS
             div.innerHTML = `
                 <div class="chk-header">
                     <span class="chk-label">${p.texto}</span>
@@ -349,11 +349,14 @@ function carregarItensChecklist(tipoId) {
                         <span class="slider"></span>
                     </label>
                 </div>
-                <div class="chk-details" id="details_${p.id}" style="display:grid"> 
+
+                <div class="chk-details"> 
                     <input type="hidden" name="item_${p.id}_texto" value="${p.texto}">
-                    <input type="text" name="item_${p.id}_obs" class="chk-obs" placeholder="Observação obrigatória...">
+                    
+                    <input type="text" name="item_${p.id}_obs" class="chk-obs" placeholder="Observação obrigatória..." autocomplete="off">
+                    
                     <label class="btn-photo-upload" id="lbl_foto_${p.id}">
-                        <i class="fas fa-camera"></i> Foto Obrigatória
+                        <i class="fas fa-camera"></i>
                         <input type="file" name="item_${p.id}_foto" accept="image/*" style="display:none" onchange="marcarFoto(${p.id})">
                     </label>
                 </div>
