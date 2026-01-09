@@ -329,34 +329,40 @@ function abrirChecklist() {
 }
 
 function carregarItensChecklist(tipoId) {
-    fetch(`/api/checklist/config/${tipoId}`).then(r=>r.json()).then(perguntas => {
+    fetch(`/api/checklist/config/${tipoId}`).then(r => r.json()).then(perguntas => {
         const container = document.getElementById('containerPerguntas');
         container.innerHTML = "";
         
-        if(perguntas.length === 0) {
+        if (perguntas.length === 0) {
             container.innerHTML = "<p style='text-align:center; color:#666'>Nenhum item configurado.</p>";
-            // Auto-libera se abriu e viu que estava vazio
             liberarAcesso("Lista vazia");
             return;
         }
 
         perguntas.forEach(p => {
             const div = document.createElement('div');
-            div.className = 'checklist-item';
+            // Adiciona classe identificadora 'chk-validation-item'
+            div.className = 'chk-item chk-validation-item'; 
             div.innerHTML = `
-                <div class="chk-header">
-                    <span class="chk-label">${p.texto}</span>
-                    <label class="toggle-switch">
-                        <input type="checkbox" name="item_${p.id}_conforme" checked>
+                <span class="chk-label">${p.texto}</span>
+                
+                <div class="toggle-switch">
+                    <span style="font-size:12px; font-weight:bold; color:var(--danger)">ALERTA</span>
+                    <label class="switch">
+                        <input type="checkbox" name="item_${p.id}_conforme" onchange="toggleObs(${p.id}, this)" checked>
                         <span class="slider"></span>
                     </label>
+                    <span style="font-size:12px; font-weight:bold; color:var(--success)">OK</span>
                 </div>
-                <div class="chk-details">
-                    <input type="hidden" name="item_${p.id}_texto" value="${p.texto}">
-                    <input type="text" name="item_${p.id}_obs" class="chk-obs" placeholder="Observação...">
-                    <label class="btn-photo-upload" id="lbl_foto_${p.id}">
-                        <i class="fas fa-camera"></i>
-                        <input type="file" name="item_${p.id}_foto" accept="image/*" style="display:none" onchange="marcarFoto(${p.id})">
+
+                <input type="hidden" name="item_${p.id}_texto" value="${p.texto}">
+
+                <div id="obs_area_${p.id}" class="obs-area" style="display:none;">
+                    <textarea name="item_${p.id}_obs" class="styled-textarea validation-obs" placeholder="Descreva o problema (Obrigatório em caso de Alerta)..." rows="2"></textarea>
+                    
+                    <label class="btn-camera validation-btn-foto" id="lbl_foto_${p.id}">
+                        <i class="fas fa-camera"></i> Adicionar Foto (Obrigatório)
+                        <input type="file" name="item_${p.id}_foto" accept="image/*" capture="environment" style="display:none" onchange="checkFile(${p.id}, this)" class="validation-file">
                     </label>
                 </div>
             `;
@@ -365,43 +371,82 @@ function carregarItensChecklist(tipoId) {
     });
 }
 
-function marcarFoto(id) { document.getElementById(`lbl_foto_${id}`).classList.add('has-file'); }
-function fecharModalChecklist() { document.getElementById('modalChecklistOp').style.display = 'none'; }
+// Funções auxiliares visuais (adicione se não tiver)
+function toggleObs(id, checkbox) {
+    const area = document.getElementById(`obs_area_${id}`);
+    if (!checkbox.checked) {
+        area.style.display = 'block'; // Mostra se for ALERTA
+    } else {
+        area.style.display = 'none';  // Esconde se for OK
+        // Limpa erro visual se o usuário desistir de marcar alerta
+        area.querySelector('textarea').style.border = "1px solid #ccc";
+        document.getElementById(`lbl_foto_${id}`).style.borderColor = "#ccc";
+    }
+}
+
+function checkFile(id, input) {
+    const lbl = document.getElementById(`lbl_foto_${id}`);
+    if(input.files && input.files[0]) {
+        lbl.classList.add('has-file');
+        lbl.style.borderColor = "var(--success)"; // Remove vermelho se tiver
+        lbl.innerHTML = `<i class="fas fa-check"></i> Foto Anexada`;
+    }
+}
 
 function enviarChecklist() {
     const session = JSON.parse(localStorage.getItem('maprix_session'));
     const form = document.getElementById('formChecklist');
     
-    // Validação
-    const itens = document.querySelectorAll('.checklist-item');
+    // --- VALIDAÇÃO RIGOROSA ---
+    const itens = document.querySelectorAll('.chk-validation-item');
+    
     for (const item of itens) {
+        // 1. Pega os elementos do item atual
         const label = item.querySelector('.chk-label').innerText;
-        const obsInput = item.querySelector('.chk-obs');
-        const fileInput = item.querySelector('input[type="file"]');
-        
-        if (obsInput.value.trim() && fileInput.files.length === 0) {
-            showToast(`Adicione foto para: "${label}"`, "warning");
-            return;
+        const checkbox = item.querySelector('input[type="checkbox"]');
+        const obsInput = item.querySelector('.validation-obs');
+        const fileInput = item.querySelector('.validation-file');
+        const btnFoto = item.querySelector('.validation-btn-foto');
+
+        // 2. Regra: Se Checkbox NÃO está marcado (Estado ALERTA)
+        if (!checkbox.checked) {
+            
+            // Valida Texto
+            if (!obsInput.value.trim()) {
+                showToast(`Descreva o problema em: "${label}"`, "warning");
+                obsInput.focus();
+                obsInput.style.border = "2px solid var(--danger)";
+                return; // PARA TUDO
+            } else {
+                obsInput.style.border = "1px solid #ccc";
+            }
+
+            // Valida Foto
+            if (fileInput.files.length === 0) {
+                showToast(`Foto obrigatória para: "${label}"`, "warning");
+                btnFoto.style.border = "2px solid var(--danger)";
+                btnFoto.style.color = "var(--danger)";
+                // Rola a tela até o botão
+                btnFoto.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return; // PARA TUDO
+            }
         }
     }
 
+    // --- PREPARAÇÃO E ENVIO (Se passou da validação acima) ---
     const formData = new FormData(form);
     formData.append('equipamento', session.equipamento);
     formData.append('operador', session.operador);
 
-    // --- CORREÇÃO DA HORA: ENVIA DATA LOCAL ---
-    // O JS pega a hora do dispositivo do operador.
+    // Ajuste de Fuso Horário
     const agora = new Date();
-    // Ajusta o fuso horário manualmente para enviar ISO correto
     const offsetMs = agora.getTimezoneOffset() * 60000;
     const localIso = new Date(agora.getTime() - offsetMs).toISOString().slice(0, 19);
-    
     formData.append('data_hora_local', localIso);
-    // ------------------------------------------
 
     const btn = document.querySelector('#modalChecklistOp .btn-save');
     const originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ...';
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
     btn.disabled = true;
 
     fetch('/api/checklist/submit', { method: 'POST', body: formData })
