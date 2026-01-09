@@ -326,7 +326,7 @@ function abrirChecklist() {
 }
 
 function carregarItensChecklist(tipoId) {
-    fetch(`/api/checklist/config/${tipoId}`).then(r=>r.json()).then(perguntas => {
+    fetch(`/api/checklist/config/${tipoId}`).then(r => r.json()).then(perguntas => {
         const container = document.getElementById('containerPerguntas');
         container.innerHTML = "";
         
@@ -339,6 +339,8 @@ function carregarItensChecklist(tipoId) {
         perguntas.forEach(p => {
             const div = document.createElement('div');
             div.className = 'checklist-item';
+            div.id = `chk_row_${p.id}`; // ID para scroll em caso de erro
+            
             div.innerHTML = `
                 <div class="chk-header">
                     <span class="chk-label">${p.texto}</span>
@@ -349,10 +351,12 @@ function carregarItensChecklist(tipoId) {
                 </div>
                 <div class="chk-details" id="details_${p.id}" style="display:none">
                     <input type="hidden" name="item_${p.id}_texto" value="${p.texto}">
-                    <input type="text" name="item_${p.id}_obs" class="chk-obs" placeholder="Descreva o problema (Obrigatório)...">
+                    
+                    <input type="text" name="item_${p.id}_obs" id="obs_${p.id}" class="chk-obs" placeholder="Descreva o problema (Obrigatório)...">
+                    
                     <label class="btn-photo-upload" id="lbl_foto_${p.id}">
-                        <i class="fas fa-camera"></i>
-                        <input type="file" name="item_${p.id}_foto" accept="image/*" style="display:none" onchange="marcarFoto(${p.id})">
+                        <i class="fas fa-camera"></i> Foto Obrigatória
+                        <input type="file" id="file_${p.id}" name="item_${p.id}_foto" accept="image/*" style="display:none" onchange="marcarFoto(${p.id})">
                     </label>
                 </div>
             `;
@@ -380,58 +384,94 @@ function enviarChecklist() {
     const session = JSON.parse(localStorage.getItem('maprix_session'));
     const form = document.getElementById('formChecklist');
     
-    // 1. Validação Item a Item
+    // Limpa erros visuais anteriores
+    document.querySelectorAll('.error-border').forEach(el => el.classList.remove('error-border'));
+
+    // --- 1. VALIDAÇÃO ITEM A ITEM ---
     const itens = document.querySelectorAll('.checklist-item');
+    let temErro = false;
+    let primeiroErroId = null;
+
     for (const item of itens) {
+        // Busca elementos dentro da linha
         const checkbox = item.querySelector('.chk-toggle');
-        const label = item.querySelector('.chk-label').innerText;
-        
-        // Se estiver "NÃO OK" (unchecked)
+        const labelText = item.querySelector('.chk-label').innerText;
+        const obsInput = item.querySelector('.chk-obs');
+        const fileInput = item.querySelector('input[type="file"]');
+        const btnFoto = item.querySelector('.btn-photo-upload');
+
+        // REGRA: Se o checkbox NÃO estiver marcado (Item Reprovado/Alerta)
         if (!checkbox.checked) {
-            const obsInput = item.querySelector('.chk-obs');
-            const fileInput = item.querySelector('input[type="file"]');
             
+            // Valida Observação
             if (!obsInput.value.trim()) {
-                showToast(`Descreva o problema em: "${label}"`, "warning");
-                obsInput.focus();
-                return;
+                obsInput.classList.add('error-border'); // Classe CSS para borda vermelha
+                showToast(`Descreva o problema em: "${labelText}"`, "warning");
+                temErro = true;
             }
-            
+
+            // Valida Foto (FILES.LENGTH === 0 SIGNIFICA SEM FOTO)
             if (fileInput.files.length === 0) {
-                showToast(`Foto obrigatória em: "${label}"`, "warning");
-                return;
+                btnFoto.classList.add('error-border');
+                btnFoto.style.border = "2px solid #dc3545"; // Força borda vermelha visual
+                showToast(`Foto obrigatória em: "${labelText}"`, "warning");
+                temErro = true;
             }
+
+            if (temErro) {
+                if(!primeiroErroId) primeiroErroId = item.id;
+                // Não damos "return" aqui para marcar TODOS os erros visuais de uma vez
+            }
+        }
+        
+        // Se quiser exigir foto até para itens "OK", descomente abaixo:
+        else { 
+             if (fileInput.files.length === 0) { ... erro ... }
         }
     }
 
+    // Se encontrou erro, para o envio e rola a tela até o item
+    if (temErro) {
+        if(primeiroErroId) {
+            document.getElementById(primeiroErroId).scrollIntoView({behavior: 'smooth', block: 'center'});
+        }
+        return; // ABORTA O ENVIO
+    }
+
+    // --- 2. PREPARAÇÃO DOS DADOS (Se passou na validação) ---
     const formData = new FormData(form);
     formData.append('equipamento', session.equipamento);
     formData.append('operador', session.operador);
 
-    // 2. Data Local
+    // Hora Local Correta
     const agora = new Date();
     const offsetMs = agora.getTimezoneOffset() * 60000;
     const localIso = new Date(agora.getTime() - offsetMs).toISOString().slice(0, 19);
     formData.append('data_hora_local', localIso);
 
+    // Feedback Visual no Botão
     const btn = document.querySelector('#modalChecklistOp .btn-save');
     const originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ...';
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
     btn.disabled = true;
 
+    // Envio
     fetch('/api/checklist/submit', { method: 'POST', body: formData })
     .then(r => r.json())
     .then(d => {
         if(d.status === 'sucesso') {
-            showAlert("Sucesso", "Checklist registrado!", "success");
+            showAlert("Sucesso", "Checklist registrado com evidências!", "success");
             liberarAcesso("Checklist Concluído");
             fecharModalChecklist();
         } else {
             showAlert("Erro", d.erro, "error");
         }
     })
-    .catch(e => showToast("Erro de envio.", "error"))
-    .finally(() => { btn.innerHTML = originalText; btn.disabled = false; });
+    .catch(e => showToast("Erro de conexão ao enviar.", "error"))
+    .finally(() => { 
+        btn.innerHTML = originalText; 
+        btn.disabled = false; 
+    });
 }
 
 // =========================================================
